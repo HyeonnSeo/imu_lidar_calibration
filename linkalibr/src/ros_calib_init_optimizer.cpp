@@ -79,7 +79,7 @@ private:
     gtsam::NonlinearFactorGraph graph;
     gtsam::Values initial_values;
 
-    // rotationNoise 는 [1,1,1]로 이루어지는 3차원 벡터, 즉 x y z 방향의 회전행렬의 노이즈의 표준편차가 각각 1 이라는 뜻
+    // rotationNoise 는 [1,1,1]로 이루어지는 3차원 벡터, 즉 x y z 방향의 회전행렬의 노이즈의 표준편차가 각각 1radian 이라는 뜻
     gtsam::noiseModel::Diagonal::shared_ptr rotationNoise = gtsam::noiseModel::Diagonal::Sigmas((gtsam::Vector3(1, 1, 1)));
 
 public:
@@ -192,6 +192,8 @@ public:
 
         /// GTSAM stuff
         // IMU-Lidar 사이의 회전행렬의 오차를 최소화 하는 "그래프 최적화"
+
+        // graph.add(Factor<>(a,b,c)): a는 step이고 R(0)=(r,0) 반화, b는 step의 측정값, c는 측정 Noise 
         graph.add(boost::make_shared<HECFactor>(R(0), gtsam::Point3(axisAngle_imu.x(),axisAngle_imu.y(),axisAngle_imu.z()),
                 gtsam::Point3(axisAngle_lidar.x(), axisAngle_lidar.y(), axisAngle_lidar.z()), rotationNoise));
         ROS_INFO_STREAM("Frame: " << no_of_frames << " / " << max_frames);
@@ -206,7 +208,7 @@ public:
 
     void solve() {
         gtsam::Rot3 priorRot = gtsam::Rot3::identity();
-        initial_values.insert(R(0), priorRot);
+        initial_values.insert(R(0), priorRot);  
         gtsam::Values result = gtsam::LevenbergMarquardtOptimizer(graph, initial_values).optimize();
         gtsam::Rot3 finalResult = result.at<gtsam::Rot3>(R(0));
         gtsam::Marginals marginals(graph, result);
