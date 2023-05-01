@@ -45,8 +45,8 @@ POINT_CLOUD_REGISTER_POINT_STRUCT(
              (float, y, y)
              (float, z, z)
              (float, intensity, intensity)
-             (uint8_t, ring, ring)
-             (uint32_t, t, t))
+             (std::uint8_t, ring, ring)     // 기존에는 std가 없음
+             (std::uint32_t, t, t))
 
 typedef lin_core::PointXYZIR8Y TPoint;
 typedef pcl::PointCloud<TPoint> TPointCloud;

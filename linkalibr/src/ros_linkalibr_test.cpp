@@ -31,6 +31,8 @@
 
 #include <pcl/visualization/cloud_viewer.h>
 
+#include <boost/system/error_code.hpp>
+
 using namespace lin_estimator;
 
 lincalibManager *sys;
@@ -61,13 +63,16 @@ void downSampleCloud(const pcl::PointCloud<lin_core::PointXYZIR8Y>::Ptr cloud_in
 int main(int argc, char** argv) {
     /// Launch ros node
     ros::init(argc, argv, "ros_test_node");
-    ros::NodeHandle nh("~");
+    ros::NodeHandle nh("~");    
     /// Create our lincalib system
+    // parse_ros_nodehandler(nh): 파라미터 데이터를 Sub 하여 구조체에 저장
     lincalibManagerOptions params = parse_ros_nodehandler(nh);
+
+    // sys = params
     sys = new lincalibManager(params);
     ros::Publisher cloud_pub = nh.advertise<sensor_msgs::PointCloud2>("/raw_cloud_out", 1);
     ros::Publisher imu_pose_pub = nh.advertise<geometry_msgs::PoseWithCovarianceStamped>("/imu_pose_out", 1);
-    ros::Publisher imu_odom_pub = nh.advertise<nav_msgs::Odometry>("/imu_odom_out", 1);
+    ros::Publisher  imu_odom_pub = nh.advertise<nav_msgs::Odometry>("/imu_odom_out", 1);
     ros::Publisher lidar_pose_pub = nh.advertise<geometry_msgs::PoseStamped>("/lidar_pose_out", 1);
     ros::Publisher planar_cloud_pub = nh.advertise<sensor_msgs::PointCloud2>("/planar_points_out", 1);
     ros::Publisher undistorted_cloud_pub = nh.advertise<sensor_msgs::PointCloud2>("/undistorted_cloud_out", 1);
@@ -88,7 +93,7 @@ int main(int argc, char** argv) {
 
     /// Location of the ROS bag we want to read in
     std::string path_to_bag;
-    nh.param<std::string>("path_bag", path_to_bag, "/home/usl/datasets/ouster_vectornav.bag");
+    nh.param<std::string>("path_bag", path_to_bag, "/home/coui/catkin_ws/src/imu_lidar_calibration/figures/2021-04-16-10-32-05_far.bag");
     ROS_INFO_STREAM("ROS BAG PATH is: " << path_to_bag.c_str());
 
     /// Get our start location and how much of the bag we want to play
@@ -156,14 +161,15 @@ int main(int argc, char** argv) {
     std::string imu_measurements_filename;
     std::ofstream imu_measurements_csv;
 
+
     if(params.gen_data_for_optimization) {
-        nh.param<std::string>("imu_measurements_filename", imu_measurements_filename, "/home/usl/catkin_ws/src/linkalibr/data/imu_measurements.csv");
+        nh.param<std::string>("imu_measurements_filename", imu_measurements_filename, "/home/coui/catkin_ws/src/linkalibr/data/imu_measurements.csv");
         imu_measurements_csv.open(imu_measurements_filename);
 
-        nh.param<std::string>("imu_trajectory_filename", imu_trajectory_filename, "/home/usl/catkin_ws/src/linkalibr/data/imu_trajectory.csv");
+        nh.param<std::string>("imu_trajectory_filename", imu_trajectory_filename, "/home/coui/catkin_ws/src/linkalibr/data/imu_trajectory.csv");
         imu_trajectory_csv.open(imu_trajectory_filename);
 
-        nh.param<std::string>("lidar_trajectory_filename", lidar_trajectory_filename, "/home/usl/catkin_ws/src/linkalibr/data/lidar_trajectory.csv");
+        nh.param<std::string>("lidar_trajectory_filename", lidar_trajectory_filename, "/home/coui/catkin_ws/src/linkalibr/data/lidar_trajectory.csv");
         lidar_trajectory_csv.open(lidar_trajectory_filename);
     }
     bool first_lodom = true;
@@ -171,26 +177,40 @@ int main(int argc, char** argv) {
         /// If ROS wants us to stop, break out
         if(!ros::ok())
             break;
+
+
         /// Handle IMU measurement
         sensor_msgs::Imu::ConstPtr s_imu = m.instantiate<sensor_msgs::Imu>();
         if (s_imu != nullptr && m.getTopic() == topic_imu) {
             imu_pub.publish(s_imu);
             imu_frame_name = s_imu->header.frame_id;
             double time_imu = (*s_imu).header.stamp.toSec();
-            Eigen::Matrix<double, 3, 1> wm, am;
+
+            Eigen::Matrix<double, 3, 1> wm, am;     // IMU의 가속도, 각속도 저장
             wm << (*s_imu).angular_velocity.x, (*s_imu).angular_velocity.y, (*s_imu).angular_velocity.z;
             am << (*s_imu).linear_acceleration.x, (*s_imu).linear_acceleration.y, (*s_imu).linear_acceleration.z;
+
+            // 저장한 IMU 값을 imu_measurements_csv 파일에 저장
             if(params.gen_data_for_optimization) {
                 imu_measurements_csv << s_imu->header.stamp.toNSec() << ", "
                 << am.x() << ", " << am.y() << ", " << am.z()<< ", "
                 << wm.x() << ", " << wm.y() << ", " << wm.z() << "\n";
             }
+            
+            // 현재 상태를 추출
             State* state = sys->get_state();
+        
+            //EKF의 추정 state를 저장할 공간 생성: (q_GtoI, p_IinG, v_IinG, w_IinI)
             Eigen::Matrix<double,13,1> state_plus = Eigen::Matrix<double,13,1>::Zero();
+
+            // sys의 전달 객체를 반환하고 이 객체의 fast_state_propagate 함수를 실행
+            // fast_state_propagate: EKF의 전달함수(현재 state, 추정하는 시간, 추정 state)
             sys->get_propagator()->fast_state_propagate(state, time_imu, state_plus);
 
+            
             // Our odometry message
-            nav_msgs::Odometry odomIinM;
+            //// 추정한 state의 값을 포함한 Odometry 메세지 생성
+            nav_msgs::Odometry odomIinM;        // Odometry IMU in Measurement 
             odomIinM.header.stamp = (*s_imu).header.stamp;
             odomIinM.header.frame_id = "map";
 
@@ -203,11 +223,17 @@ int main(int argc, char** argv) {
             odomIinM.pose.pose.position.y = state_plus(5);
             odomIinM.pose.pose.position.z = state_plus(6);
 
+
+
             // Finally set the covariance in the message (in the order position then orientation as per ros convention)
             std::vector<Type*> statevars;
+            // IMU의 위치(Pose) 와 자세(Quatanion)를 저장
             statevars.push_back(state->_imu->pose()->p());
             statevars.push_back(state->_imu->pose()->q());
+
+            // get_marginal_covariance: 현재 상태에서 statevars의 지정된 변수들의 공분산 행렬(6x6)을 추출
             Eigen::Matrix<double,6,6> covariance_posori = StateHelper::get_marginal_covariance(sys->get_state(),statevars);
+            // 공분산 행렬을 odometry 메세지에 추가
             for(int r=0; r<6; r++) {
                 for(int c=0; c<6; c++) {
                     odomIinM.pose.covariance[6*r+c] = covariance_posori(r,c);
@@ -215,6 +241,7 @@ int main(int argc, char** argv) {
             }
 
             // The TWIST component (angular and linear velocities)
+            // IMU의 가속도 추정값은 저장하지만 각속도 추정은 안함
             odomIinM.child_frame_id = "imu";
             odomIinM.twist.twist.linear.x = state_plus(7);
             odomIinM.twist.twist.linear.y = state_plus(8);
@@ -222,6 +249,8 @@ int main(int argc, char** argv) {
             odomIinM.twist.twist.angular.x = state_plus(10); // we do not estimate this...
             odomIinM.twist.twist.angular.y = state_plus(11); // we do not estimate this...
             odomIinM.twist.twist.angular.z = state_plus(12); // we do not estimate this...
+
+
 
             // Velocity covariance (linear then angular)
             statevars.clear();
@@ -235,53 +264,78 @@ int main(int argc, char** argv) {
             }
 
             // Finally, publish the resulting odometry message
+            // IMU Odometry 추정값을 pub
             imu_odom_pub.publish(odomIinM);
 
             /// Send it to our linkalibr system
+            // IMU 측정값 업데이트
             sys->feed_measurement_imu(time_imu, wm, am);
             no_of_imu++;
         }
 
+
         /// Handle Lidar measurement
+
+        //bag 파일에서 PointCloud 값을 가져와 s_lidar 에 저장
         sensor_msgs::PointCloud2::ConstPtr s_lidar = m.instantiate<sensor_msgs::PointCloud2>();
         if (s_lidar != nullptr && m.getTopic() == topic_lidar) {
             lidar_frame_name = s_lidar->header.frame_id;
             ROS_INFO_STREAM("No of imu measurements: " << no_of_imu);
             no_of_imu = 0;
+
+            // raw PointCloud를 Pub
             cloud_pub.publish(*s_lidar);
             double time_lidar = (*s_lidar).header.stamp.toSec();
-            pcl::fromROSMsg(*s_lidar, *cloud);
+            pcl::fromROSMsg(*s_lidar, *cloud);      //ros msg의 PointCloud 형식을 pcl PointCloud 형식으로 변환
+
             /// TODO :  Try Downsampling here
 //            downSampleCloud(cloud, cloud_downsampled, 1);
             /// Send it to linkalibr system
+
+            // feed_measurement_lidar: undistortion & lidar odometry
             sys->feed_measurement_lidar(time_lidar, cloud);
+
             VPointCloud cloud_undistorted = sys->get_undistorted_cloud();
             sensor_msgs::PointCloud2 cloud_undistorted_ros;
             pcl::toROSMsg(cloud_undistorted, cloud_undistorted_ros);
             cloud_undistorted_ros.header.frame_id = s_lidar->header.frame_id;
             cloud_undistorted_ros.header.stamp = s_lidar->header.stamp;
             cloud_undistorted_ros.header.seq = s_lidar->header.seq;
+
+            // distortion 제거된 PointCloud를 Pub
             undistorted_cloud_pub.publish(cloud_undistorted_ros);
 
             ROS_INFO_STREAM("Lidar scan no: " << lidar_scan_no);
             lidar_scan_no++;
+
+            
             State* state_k = sys->get_state();
-            Eigen::Vector3d G_t_Ik = state_k->_imu->pos();
-            Eigen::Vector4d Ik_quat_imu_G = state_k->_imu->quat();
-            Eigen::Matrix3d Ik_R_G = lin_core::quat_2_Rot(Ik_quat_imu_G);
-            Eigen::Matrix3d G_R_Ik = Ik_R_G.transpose();
+            Eigen::Vector3d G_t_Ik = state_k->_imu->pos();                  // G_t_Ik: G 기준 IMU 의 Pose Vector
+            Eigen::Vector4d Ik_quat_imu_G = state_k->_imu->quat();           
+            Eigen::Matrix3d Ik_R_G = lin_core::quat_2_Rot(Ik_quat_imu_G);  
+            Eigen::Matrix3d G_R_Ik = Ik_R_G.transpose();                    // G_R_Ik: G 기준 IMU 의 회전행렬
             Eigen::Matrix4d G_T_Ik = Eigen::Matrix4d::Identity();
             G_T_Ik.block(0, 0, 3, 3) = G_R_Ik;
-            G_T_Ik.block(0, 3, 3, 1) = G_t_Ik;
+            G_T_Ik.block(0, 3, 3, 1) = G_t_Ik;                              // G_T_Ik: G 기준 IMU 의 변환행렬
             Eigen::Quaterniond quat_imu_k_eig(G_R_Ik);
+
+            // ros의 tf라이브러리로 생성한 객체 transform1의 원점 설정
             transform1.setOrigin(tf::Vector3(G_t_Ik.x(), G_t_Ik.y(), G_t_Ik.z()));
+            // transform1의 회전 설정
             transform1.setRotation(tf::Quaternion(quat_imu_k_eig.x(), quat_imu_k_eig.y(), quat_imu_k_eig.z(), quat_imu_k_eig.w()));
+            // tf 시스템에게 변환 메세지를 보내기
             br1.sendTransform(tf::StampedTransform(transform1, (*s_lidar).header.stamp, "map", imu_frame_name));
 
+            // IMU 와 Lidar의 timestamp 차이
+            // t_ItoL는 imu-Lidar 시간차이
             double t_ItoL = state_k->_calib_dt_LIDARtoIMU->value()(0);
+
+            // state_k->_timestamp 는 현재시간, t_ItoL는 imu-Lidar 시간차이 이므로
+            // 현재시간 + Imu-Lidar시간차이 => timestamp : timestamp 는 EKF의 step으로 IMU & Lidar의 일정한 순간에 catch 해야한다
             double timestamp_inI = state_k->_timestamp + t_ItoL;
 
             // Create pose of IMU (note we use the bag time)
+            // G 기준 IMU 의 Pose 메시지 작성: Pose 와 해당 Pose의 Covariance(불확실성)을 포함
             geometry_msgs::PoseWithCovarianceStamped poseIinG;
             poseIinG.header.stamp = ros::Time(timestamp_inI);
             poseIinG.header.frame_id = "map";
@@ -292,6 +346,7 @@ int main(int argc, char** argv) {
             poseIinG.pose.pose.position.x = G_t_Ik.x();
             poseIinG.pose.pose.position.y = G_t_Ik.y();
             poseIinG.pose.pose.position.z = G_t_Ik.z();
+
             // Finally set the covariance in the message (in the order position then orientation as per ros convention)
             std::vector<Type*> statevars;
             statevars.push_back(state_k->_imu->pose()->p());
@@ -302,23 +357,29 @@ int main(int argc, char** argv) {
                     poseIinG.pose.covariance[6*r+c] = covariance_posori(r,c);
                 }
             }
+            // "/imu_pose_out" 메세지 Publish 
             imu_pose_pub.publish(poseIinG);
 
+
+            // Lidar 의 Odometry object가 1개 이상일때, IMU-Lidar 의 Calibration
             ROS_INFO_STREAM("No of lodom: " << sys->get_track_lodom()->get_odom_data().size());
             int no_of_lodoms = sys->get_track_lodom()->get_odom_data().size();
 
             if(no_of_lodoms > 0) {
+                // IMU-Lidar 간의 변환행렬 불러오기
                 Eigen::Matrix3d I_R_L = lin_core::quat_2_Rot(sys->get_state()->_calib_LIDARtoIMU->quat());
                 Eigen::Vector3d I_t_L = sys->get_state()->_calib_LIDARtoIMU->pos();
                 Eigen::Matrix4d I_T_L = Eigen::Matrix4d::Identity();
                 I_T_L.block(0, 0, 3, 3) = I_R_L;
                 I_T_L.block(0, 3, 3, 1) = I_t_L;
-                Eigen::Matrix4d G_T_I1 = sys->G_T_I1;
+                Eigen::Matrix4d G_T_I1 = sys->G_T_I1;           // Deskew -> NDT Scan 결과값: Measurement 결과 반영
                 if(first_lodom) {
                     G_T_I1 = sys->G_T_I1;
                     first_lodom = false;
                 }
 
+                // IMU-Lidar Calibration !!!!!!!!!!!!!!!!!!!!!!!!!
+                
                 Eigen::Matrix4d I1_T_Ik = G_T_I1.inverse()*G_T_Ik;
                 Eigen::Vector3d I1_t_Ik = I1_T_Ik.block(0, 3, 3, 1);
                 Eigen::Matrix3d I1_R_Ik = I1_T_Ik.block(0, 0, 3, 3);
@@ -364,14 +425,21 @@ int main(int argc, char** argv) {
                     G_quat_L1 = Eigen::Quaterniond(G_R_L1);
                 }
 
+                // 로봇의 위치와 자세 정보를 tf(transform) 메시지로 생성하고, 
+                // "map"과 "os_lidar_1" 프레임 이름으로 메시지를 전송하여 로봇의 위치와 자세 정보를 시각화하는 기능
+
+                // transform2 & br2: 최종적으로 estimate된 Lidar의 Pose(Global 기준)
                 transform2.setOrigin(tf::Vector3(G_t_Lk.x(), G_t_Lk.y(), G_t_Lk.z()));
                 transform2.setRotation(tf::Quaternion(G_quat_Lk.x(), G_quat_Lk.y(), G_quat_Lk.z(), G_quat_Lk.w()));
                 br2.sendTransform(tf::StampedTransform(transform2, (*s_lidar).header.stamp, "map", lidar_frame_name));
 
+                // transform3 & br3: estimate되기 전 Lidar의 Pose(Global 기준)
                 transform3.setOrigin(tf::Vector3(G_t_L1.x(), G_t_L1.y(), G_t_L1.z()));
                 transform3.setRotation(tf::Quaternion(G_quat_L1.x(), G_quat_L1.y(), G_quat_L1.z(), G_quat_L1.w()));
                 br3.sendTransform(tf::StampedTransform(transform3, (*s_lidar).header.stamp, "map", "os_lidar_1"));
             }
+
+            // 지도 생성
             if(sys->get_track_lodom()->isKeyFrame()) {
                 map_cloud = sys->get_track_lodom()->getTargetMap();
                 sensor_msgs::PointCloud2 map_cloud_ros;
@@ -386,7 +454,7 @@ int main(int argc, char** argv) {
     if(params.gen_map_data) {
         std::cout << "Generating map pointcloud as csv.." << std::endl;
         std::string map_csv_file_name;
-        nh.param<std::string>("map_csv_file_name", map_csv_file_name, "/home/usl/catkin_ws/src/linkalibr/data/map_csv_file.csv");
+        nh.param<std::string>("map_csv_file_name", map_csv_file_name, "/home/coui/catkin_ws/src/linkalibr/data/map_csv_file.csv");
         std::ofstream map_csv_file;
         map_csv_file.open(map_csv_file_name);
         for(int i = 0; i < map_cloud->points.size(); i++) {
@@ -401,11 +469,13 @@ int main(int argc, char** argv) {
         lidar_trajectory_csv.close();
         imu_trajectory_csv.close();
     }
+
+    
     ros::Time end_time = ros::Time::now();
     ROS_INFO_STREAM("Reached end of bag");
     ROS_INFO_STREAM("Kalman Filtering took : " << end_time.toSec() - start_time.toSec() << " [s]");
     /// Write the final I_T_L to a text file
-    State* state = sys->get_state();
+    State* state = sys->get_state();        // 최종 state값 불러오기
     Pose *calibration = state->_calib_LIDARtoIMU;
     Eigen::Matrix3d I_R_L = calibration->Rot();
     Eigen::Vector3d I_t_L = calibration->pos();

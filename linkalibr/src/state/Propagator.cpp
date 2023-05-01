@@ -105,7 +105,7 @@ void Propagator::fast_state_propagate(State *state, /// Pointer to state
     vector<IMUDATA> prop_data = Propagator::select_IMU_readings(imu_data, time0, time1);
     /// Save the original IMU state
     Eigen::VectorXd orig_val = state->_imu->value();
-    Eigen::VectorXd orig_fe = state->_imu->fe();
+    Eigen::VectorXd orig_fe = state->_imu->fe();    // first_estimate
 
     /// Loop through all IMU messages, and use them to move the state forward in time
     /// This uses the zero'th order quat, and then constant acceleration discrete

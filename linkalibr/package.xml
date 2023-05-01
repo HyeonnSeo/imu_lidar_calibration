@@ -28,9 +28,10 @@
     <build_depend>nav_msgs</build_depend>
     <build_depend>ndt_omp</build_depend>
     <build_depend>tf</build_depend>
-    <build_depend>imuPacket</build_depend>
+    <build_depend>imu_packet</build_depend>
     <build_depend>pcl_ros</build_depend>
     <build_depend>pcl_conversions</build_depend>
+    <build_depend>gtsam</build_depend>
 
     <!-- Dependencies needed after this package is compiled. -->
     <run_depend>roscpp</run_depend>
@@ -42,9 +43,10 @@
     <run_depend>nav_msgs</run_depend>
     <run_depend>ndt_omp</run_depend>
     <run_depend>tf</run_depend>
-    <run_depend>imuPacket</run_depend>
+    <run_depend>imu_packet</run_depend>
     <run_depend>pcl_ros</run_depend>
     <run_depend>pcl_conversions</run_depend>
+    <run_depend>gtsam</run_depend>
 
 
 </package>

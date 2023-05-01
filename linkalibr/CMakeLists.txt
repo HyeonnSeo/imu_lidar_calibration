@@ -21,20 +21,20 @@ find_package(catkin QUIET COMPONENTS
         nav_msgs
         ndt_omp
         tf
-        imuPacket
+        imu_packet
         pcl_ros
         pcl_conversions
 )
 
 # Include libraries
 find_package(Eigen3 REQUIRED)
-find_package(Boost REQUIRED COMPONENTS system filesystem thread date_time)
-#find_package(PCL REQUIRED)
-#find_package(Ceres REQUIRED)
-#find_package(GTSAM REQUIRED)
+find_package(Boost REQUIRED COMPONENTS system filesystem thread date_time timer)
+find_package(PCL REQUIRED)
+find_package(Ceres REQUIRED)
+find_package(GTSAM REQUIRED)
 
-#link_directories(${PCL_LIBRARY_DIRS})
-#add_definitions(${PCL_DEFINITIONS})
+link_directories(${PCL_LIBRARY_DIRS})
+add_definitions(${PCL_DEFINITIONS})
 
 # display message to user
 message(STATUS "EIGEN VERSION: " ${EIGEN3_VERSION})
@@ -44,7 +44,7 @@ message(STATUS "BOOST VERSION: " ${Boost_VERSION})
 if (catkin_FOUND)
     add_definitions(-DROS_AVAILABLE=1)
     catkin_package(
-            CATKIN_DEPENDS roscpp rosbag tf std_msgs geometry_msgs sensor_msgs nav_msgs imuPacket
+            CATKIN_DEPENDS roscpp rosbag tf std_msgs geometry_msgs sensor_msgs nav_msgs imu_packet
             INCLUDE_DIRS src
             LIBRARIES linkalibr_lib
     )
@@ -58,9 +58,9 @@ include_directories(
         ${EIGEN3_INCLUDE_DIR}
         ${Boost_INCLUDE_DIRS}
         ${catkin_INCLUDE_DIRS}
-#        ${PCL_INCLUDE_DIRS}
-#        ${CERES_INCLUDE_DIRS}
-#        ${GTSAM_INCLUDE_DIR}
+        ${PCL_INCLUDE_DIRS}
+        ${CERES_INCLUDE_DIRS}
+        ${GTSAM_INCLUDE_DIR}
 )
 
 # Set link libraries used by all binaries
@@ -69,7 +69,7 @@ list(APPEND thirdparty_libraries
         ${catkin_LIBRARIES}
         ${PCL_LIBRARIES}
         ${CERES_LIBRARIES}
-        #        gtsam
+        gtsam
         )
 
 ##################################################
@@ -93,7 +93,8 @@ target_include_directories(linkalibr_lib PUBLIC src)
 add_executable(ros_test_node src/ros_linkalibr_test.cpp)
 target_link_libraries(ros_test_node linkalibr_lib ${catkin_LIBRARIES})
 
+add_executable(ros_calib_init src/ros_calib_init.cpp)
+target_link_libraries(ros_calib_init linkalibr_lib ${catkin_LIBRARIES})
 
-
-
-
+add_executable(ros_calib_init_optimizer src/ros_calib_init_optimizer.cpp)
+target_link_libraries(ros_calib_init_optimizer linkalibr_lib ${thirdparty_libraries} libtbb)

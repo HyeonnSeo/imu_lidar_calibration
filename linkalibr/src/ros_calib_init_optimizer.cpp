@@ -16,24 +16,25 @@
 #include <gtsam/nonlinear/Marginals.h>
 #include <gtsam/nonlinear/NonlinearFactorGraph.h>
 
-#include <imuPacket/imuPacket.h>
+#include <imu_packet/imu_packet.h>
 
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 #include <ceres/ceres.h>
 #include <ceres/rotation.h>
-#include <ceres/autodiff_cost_function.h>
+#include <ceres/autodiff_cost_function.h>    
 
 #include <message_filters/subscriber.h>
 #include <message_filters/synchronizer.h>
 #include <message_filters/sync_policies/approximate_time.h>
 
 #include <ostream>
-#include <c++/5/fstream>
+#include <fstream>
 #include <gtsam/nonlinear/LevenbergMarquardtOptimizer.h>
 
+
 typedef message_filters::sync_policies::ApproximateTime
-        <imuPacket::imuPacket,
+        <imu_packet::imu_packet,
          geometry_msgs::PoseStamped> SyncPolicy;
 
 /// GTSAM Factor
@@ -60,7 +61,7 @@ public:
 class calibInitOptimizer {
 private:
     ros::NodeHandle nh;
-    message_filters::Subscriber<imuPacket::imuPacket> *imupacket_sub;
+    message_filters::Subscriber<imu_packet::imu_packet> *imupacket_sub;
     message_filters::Subscriber<geometry_msgs::PoseStamped> *pose_sub;
 
     message_filters::Synchronizer<SyncPolicy> *sync;
@@ -77,27 +78,45 @@ private:
     /// GTSAM stuff
     gtsam::NonlinearFactorGraph graph;
     gtsam::Values initial_values;
+
+    // rotationNoise 는 [1,1,1]로 이루어지는 3차원 벡터, 즉 x y z 방향의 회전행렬의 노이즈의 표준편차가 각각 1 이라는 뜻
     gtsam::noiseModel::Diagonal::shared_ptr rotationNoise = gtsam::noiseModel::Diagonal::Sigmas((gtsam::Vector3(1, 1, 1)));
 
 public:
     calibInitOptimizer(ros::NodeHandle n) {
         nh = n;
-        imupacket_sub = new message_filters::Subscriber<imuPacket::imuPacket>(nh, "/imu_packet", 1);
+
+        // ros_calib_init 노드에서 puslish 된 "/imu_packet"과 "/lidar_odometry(쿼터니언)" 토픽을 subscribe
+        imupacket_sub = new message_filters::Subscriber<imu_packet::imu_packet>(nh, "/imu_packet", 1);
         pose_sub = new message_filters::Subscriber<geometry_msgs::PoseStamped>(nh, "/lidar_odometry", 1);
 
+
+        // sub들을 동기화. 최대 10개의 메세지를 대기하고 callback
         sync = new message_filters::Synchronizer<SyncPolicy>(SyncPolicy(10), *imupacket_sub, *pose_sub);
+        //callback 함수의 인자는 _1 과 _2
         sync->registerCallback(boost::bind(&calibInitOptimizer::callback, this, _1, _2));
 
+        ROS_INFO("aaaaa");
+        
         accelerometer_noise_density = readParam<double>(nh, "accelerometer_noise_density");
         gyroscope_noise_density = readParam<double>(nh, "gyroscope_noise_density");
+        // max_frame 은 calibration 에 사용되는 데이터 샘플 개수로, 많아지면 정확도가 향상되지만 연산 속도는 느려짐
         max_frames = readParam<int>(nh, "max_frames");
+        // calibration 결과를 저장하는 파일 이름
         calibration_result_filename = readParam<std::string>(nh, "calibration_result_filename");
 
+
+        // IMU 값을 전처리 하는 부분: IMU 값의 적분을 통해 속도와 위치를 알 수 있는데, IMU 값에는 노이즈가 있음.
         double imuGravity = 9.81;
         boost::shared_ptr<gtsam::PreintegrationParams> p = gtsam::PreintegrationParams::MakeSharedU(imuGravity);
+    
+       
         p->accelerometerCovariance  = gtsam::Matrix33::Identity(3,3) * pow(accelerometer_noise_density, 2);
-        p->gyroscopeCovariance      = gtsam::Matrix33::Identity(3,3) * pow(gyroscope_noise_density, 2); //
-        p->integrationCovariance    = gtsam::Matrix33::Identity(3,3) * pow(1e-4, 2); // error committed in integrating position from velocities
+        p->gyroscopeCovariance      = gtsam::Matrix33::Identity(3,3) * pow(gyroscope_noise_density, 2);
+        // error committed in integrating position from velocities
+        // 속도와 위치를 적분하는데에 발생하는 오차     
+        p->integrationCovariance    = gtsam::Matrix33::Identity(3,3) * pow(1e-4, 2); 
+        // 이전단계의 bias와 현재 단계의 bias는 0 이라고 가정
         gtsam::imuBias::ConstantBias prior_imu_bias((gtsam::Vector(6) << 0, 0, 0, 0, 0, 0).finished());; // assume zero initial bias
         imuIntegratorOpt = new gtsam::PreintegratedImuMeasurements(p, prior_imu_bias);
     }
@@ -117,15 +136,22 @@ public:
         return ans;
     }
 
-    void callback(const imuPacket::imuPacket::ConstPtr& imupacket_msg,
+    // 
+    void callback(const imu_packet::imu_packet::ConstPtr& imupacket_msg,
                   const geometry_msgs::PoseStamped ::ConstPtr& pose_msg) {
         int stamp_size = imupacket_msg->stamps.size();
         int accelreadings_size = imupacket_msg->accelreadings.size();
         int gyroreadings_size = imupacket_msg->gyroreadings.size();
+        
+        //디버깅용 매크로 함수. False를 반환하면 시스템 종료
         assert(stamp_size == accelreadings_size);
         assert(accelreadings_size == gyroreadings_size);
+
+
         for(int i = 1; i < stamp_size; i++) {
             double dt = imupacket_msg->stamps[i].toSec() - imupacket_msg->stamps[i-1].toSec();
+
+            //IMU의 각속도와 가속도를 저장. 1과 2는 각각 이전단계의 imu와 현재의 imu
             gtsam::Vector3 omega1 = gtsam::Vector3(imupacket_msg->gyroreadings[i-1].x,
                                                    imupacket_msg->gyroreadings[i-1].y,
                                                    imupacket_msg->gyroreadings[i-1].z);
@@ -140,30 +166,41 @@ public:
                                                   imupacket_msg->accelreadings[i].y,
                                                   imupacket_msg->accelreadings[i].z);
 
+            //이전 IMU와 현재 IMU 센서값의 평균값을 적분하여 IMU의 시간에 따른 Pose를 얻음
+            // 각속도(gyro) 적분 = 회전각도 , 가속도(accel) 적분 = 속도와 위치
             imuIntegratorOpt->integrateMeasurement(0.5*(accel1+accel2), 0.5*(omega1+omega2), dt);
         }
 
+        // 이전 IMU와 현재 IMU의 회전행렬(R_Ik-1, Ik)
         Eigen::Matrix3d deltaR_I = imuIntegratorOpt->deltaRij().matrix();
+
+
+        // Lidar의 odometary 값을 저장(odometry 토픽이 쿼터니언 단위로 전달됨)
         Eigen::Quaterniond quat_L;
         quat_L.x() = pose_msg->pose.orientation.x;
         quat_L.y() = pose_msg->pose.orientation.y;
         quat_L.z() = pose_msg->pose.orientation.z;
         quat_L.w() = pose_msg->pose.orientation.w;
+        // Lidar의 쿼터니언을 회전행렬 변환
         Eigen::Matrix3d deltaR_L(quat_L);
 
+        // 두 회전행렬을 사용하여 axis-angle 표현
         Eigen::Vector3d axisAngle_lidar;
         Eigen::Vector3d axisAngle_imu;
         ceres::RotationMatrixToAngleAxis(deltaR_L.data(), axisAngle_lidar.data());
         ceres::RotationMatrixToAngleAxis(deltaR_I.data(), axisAngle_imu.data());
 
         /// GTSAM stuff
+        // IMU-Lidar 사이의 회전행렬의 오차를 최소화 하는 "그래프 최적화"
         graph.add(boost::make_shared<HECFactor>(R(0), gtsam::Point3(axisAngle_imu.x(),axisAngle_imu.y(),axisAngle_imu.z()),
                 gtsam::Point3(axisAngle_lidar.x(), axisAngle_lidar.y(), axisAngle_lidar.z()), rotationNoise));
         ROS_INFO_STREAM("Frame: " << no_of_frames << " / " << max_frames);
+        // frame 의 개수가 max frame 과 같아지면 그래프 최적화 수행(solve)
         if(no_of_frames == max_frames) {
             solve();
         }
         no_of_frames++;
+        // 적분기 초기화
         imuIntegratorOpt->resetIntegration();
     }
 
