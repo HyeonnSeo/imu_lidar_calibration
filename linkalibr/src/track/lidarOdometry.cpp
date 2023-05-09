@@ -31,7 +31,7 @@ namespace lin_core {
                                   VPointCloud::Ptr cur_scan,
                                  Eigen::Matrix4d pose_predict) {
         odom_curr.timestamp = timestamp;
-        odom_curr.pose = Eigen::Matrix4d::Identity();
+        odom_curr.pose = Eigen::Matrix4d::Identity();   //초기값 0
 
 
         // 현재 스캔 데이터를 타겟으로 registration 과정을 거쳐 변환된 포인트 클라우드를 저장
@@ -53,7 +53,7 @@ namespace lin_core {
             odom_.push_back(odom_curr);
 
             // updateKeyScan: Keyscan은 지도에 추가할 필요가 있는 스캔으로, 이전 스캔과 비교하여 판단. 
-            // updateKeyScan(current_scan, odom_curr);         // Error!!!!
+            updateKeyScan(current_scan, odom_curr);         // Error!!!!
             first_scan = false;
         } else {        
             // 첫 스캔이 아닌경우, 이전 스탭의 odom 과 비교하여 상대적인 위치의 변환을 행렬(latestRP)로 저장한다 
@@ -79,9 +79,9 @@ namespace lin_core {
 
         odom_.push_back(odom_curr);
 
-        // if(update_map) {
-        //     updateKeyScan(current_scan, odom_curr);
-        // }
+        if(update_map) {
+            updateKeyScan(current_scan, odom_curr);
+        }
 
     }
 
@@ -113,29 +113,47 @@ namespace lin_core {
             *input_scan = cur_scan;
 
             // 다운샘플링: 포인트 클라우드 수를 줄여 연산량을 줄임
-            // if(downsampleForMapping) {  
-            //     downsampleCloud(input_scan, filtered_cloud, 0.1);
-            // } else {
-            //     *filtered_cloud = *input_scan;
-            // }
+            if(downsampleForMapping) {  
+                downsampleCloud(input_scan, filtered_cloud, 0.1);
+            } else {
+                *filtered_cloud = *input_scan;
+            }
 
-            ROS_INFO("input = %d", sizeof(input_scan));
-            ROS_INFO("filtered = %d", sizeof(filtered_cloud));
-
+            // ROS_INFO("input = %d", sizeof(input_scan));
+            // ROS_INFO("filtered = %d", sizeof(filtered_cloud));
 
             VPointCloud::Ptr scan_in_target(new VPointCloud ());
 
             // odom.pose 변환행렬을 사용하여 filtered_cloud 를 변환시켜 scan_in_target에 저장
             pcl::transformPointCloud(*filtered_cloud, *scan_in_target, odom.pose);
+
+            ROS_INFO("aaaaaaaaaaaaaaaaaaaaaaaaaaa");
             
             scan_in_target_global_->clear();
             *scan_in_target_global_ = *scan_in_target;
+
+            ROS_INFO("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
 
             // // 지도에 추가
             *map_cloud_ += *scan_in_target;
 
             // // NDT 알고리즘 수행
+            // setInputTarget(const PointCloudTargetConstPtr &cloud)
+
+
+            
+            // typedef pcl::PointXYZI VPoint;
+            // typedef pcl::PointCloud<VPoint> VPointCloud;
+            // VPointCloud::Ptr map_cloud_;
+
+            // pcl::PointCloud<pcl::PointXYZ>::Ptr map_cloud_(new pcl::PointCloud<pcl::PointXYZ>());
+            
+
             ndt_omp_->setInputTarget(map_cloud_);
+
+            
+
+            ROS_INFO("cccccccccccccc");
 
             // odom_.size: 객체수를 반환
             // key_frame_index_ 벡터에는 키프레임이 발생하는 시점의 odom 정보의 인덱스가 저장되게 됨
@@ -143,6 +161,7 @@ namespace lin_core {
             key_frame_index_.push_back(odom_.size());
         }
     }
+
 
     bool LidarOdometry::checkKeyScan(const Odom &odom) {    
         /* 현재 odom 과 이전에 저장된 odom 을 비교하여 판단

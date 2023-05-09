@@ -81,7 +81,7 @@ int main(int argc, char** argv) {
 
     /// Location of the ROS bag we want to read in
     std::string path_to_bag;
-    nh.param<std::string>("path_bag", path_to_bag, "/home/coui/catkin_ws/src/imu_lidar_calibration/figures/2021-04-16-10-32-05_far.bag");
+    nh.param<std::string>("path_bag", path_to_bag, "/home/coui/catkin_ws/bag/2021-04-16-10-32-05_far.bag");
     ROS_INFO_STREAM("ROS BAG PATH is: " << path_to_bag.c_str());
 
     /// Load rosbag here, and find messages we can play
@@ -159,7 +159,8 @@ int main(int argc, char** argv) {
 
             // // odometry 기반의 지도 업데이트: key scan 만 업데이트 하고 NDT 알고리즘을 돌림
             LOdom->feedScan((*s_lidar).header.stamp.toSec(), cloud_pcl);
-            // LOdom->append_and_update(true);
+            LOdom->append_and_update(true);
+
 
 
             // 기존 odom 과 현재 odom 의 변환행렬(lastestRP)의 상단 3x3 부분을 추출하여 deltaR_L 에 저장

@@ -79,7 +79,7 @@ private:
     gtsam::NonlinearFactorGraph graph;
     gtsam::Values initial_values;
 
-    // rotationNoise 는 [1,1,1]로 이루어지는 3차원 벡터, 즉 x y z 방향의 회전행렬의 노이즈의 표준편차가 각각 1radian 이라는 뜻
+    // rotationNoise 는 [1,1,1]로 이루어지는 3차원 벡터, 즉 x y z 방향의 회전행렬의 노이즈의 표준편차가 각각 1 radian 이라는 뜻
     gtsam::noiseModel::Diagonal::shared_ptr rotationNoise = gtsam::noiseModel::Diagonal::Sigmas((gtsam::Vector3(1, 1, 1)));
 
 public:
@@ -91,7 +91,8 @@ public:
         pose_sub = new message_filters::Subscriber<geometry_msgs::PoseStamped>(nh, "/lidar_odometry", 1);
 
 
-        // sub들을 동기화. 최대 10개의 메세지를 대기하고 callback
+        // sub들을 동기화. 두 메세지의 시간차이가 10ms 이내일때 set로 만들어 동시에 처리 callback
+        // set1 = (imu msg 1개, lidar msg 1개)
         sync = new message_filters::Synchronizer<SyncPolicy>(SyncPolicy(10), *imupacket_sub, *pose_sub);
         //callback 함수의 인자는 _1 과 _2
         sync->registerCallback(boost::bind(&calibInitOptimizer::callback, this, _1, _2));
@@ -135,7 +136,7 @@ public:
         }
         return ans;
     }
-
+ 
     // 
     void callback(const imu_packet::imu_packet::ConstPtr& imupacket_msg,
                   const geometry_msgs::PoseStamped ::ConstPtr& pose_msg) {
@@ -148,6 +149,7 @@ public:
         assert(accelreadings_size == gyroreadings_size);
 
 
+        // imu_packet 의
         for(int i = 1; i < stamp_size; i++) {
             double dt = imupacket_msg->stamps[i].toSec() - imupacket_msg->stamps[i-1].toSec();
 

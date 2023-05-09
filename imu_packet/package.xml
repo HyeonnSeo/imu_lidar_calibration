@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package>
-  <name>imuPacket</name>
+  <name>imu_packet</name>
   <version>1.0.0</version>
   <description>IMU packet msg</description>
 

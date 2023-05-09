@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(imuPacket)
+project(imu_packet)
 
 
 find_package(catkin REQUIRED COMPONENTS
@@ -11,7 +11,7 @@ find_package(catkin REQUIRED COMPONENTS
 add_message_files(
   DIRECTORY msg
   FILES
-  imuPacket.msg
+  imu_packet.msg
 )
 
 generate_messages(

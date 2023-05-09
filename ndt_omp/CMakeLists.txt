@@ -9,15 +9,15 @@ if (BUILD_WITH_MARCH_NATIVE)
 else()
   add_definitions(-msse -msse2 -msse3 -msse4 -msse4.1 -msse4.2)
   set(CMAKE_CXX_FLAGS "-msse -msse2 -msse3 -msse4 -msse4.1 -msse4.2")
-endif()
+endif()  
 
 # pcl 1.7 causes a segfault when it is built with debug mode
 set(CMAKE_BUILD_TYPE "RELEASE")
 
-#find_package(PCL 1.7 REQUIRED)
-#include_directories(${PCL_INCLUDE_DIRS})
-#link_directories(${PCL_LIBRARY_DIRS})
-#add_definitions(${PCL_DEFINITIONS})
+find_package(PCL 1.12 REQUIRED)
+include_directories(${PCL_INCLUDE_DIRS})
+link_directories(${PCL_LIBRARY_DIRS})
+add_definitions(${PCL_DEFINITIONS})
 
 message(STATUS "PCL_INCLUDE_DIRS:" ${PCL_INCLUDE_DIRS})
 message(STATUS "PCL_LIBRARY_DIRS:" ${PCL_LIBRARY_DIRS})
@@ -36,7 +36,7 @@ find_package(catkin REQUIRED COMPONENTS
   pcl_ros
 )
 
-###################################
+###################################e
 ## catkin specific configuration ##
 ###################################
 catkin_package(
@@ -100,10 +100,13 @@ include_directories(
 )
 
 add_library(ndt_omp
+  SHARED
   src/pclomp/voxel_grid_covariance_omp.cpp
   src/pclomp/ndt_omp.cpp
   src/pclomp/gicp_omp.cpp
 )
+
+ament_export_targets(ndt_omp HAS_LIBRARY_TARGET)
 
 target_link_libraries(ndt_omp ${PCL_LIBRARIES})
 
@@ -112,6 +115,16 @@ if(OpenMP_CXX_FOUND)
 else()
   message(WARNING "OpenMP not found")
 endif()
+
+install(
+  TARGETS
+    ndt_omp
+  EXPORT ndt_omp
+  LIBRARY DESTINATION lib
+  ARCHIVE DESTINATION lib
+  RUNTIME DESTINATION bin
+  INCLUDES DESTINATION include
+)
 
 ament_auto_package()
 endif()

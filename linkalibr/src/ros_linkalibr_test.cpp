@@ -80,7 +80,7 @@ int main(int argc, char** argv) {
     ros::Publisher planar_param_first_scan_pub = nh.advertise<geometry_msgs::QuaternionStamped>("/planar_param_first_scan", 1);
     ros::Publisher planar_param_curr_scan_pub = nh.advertise<geometry_msgs::QuaternionStamped>("/planar_param_curr_scan", 1);
     ros::Publisher map_pub = nh.advertise<sensor_msgs::PointCloud2>("/map_cloud", 1);
-
+    
     ///===================================================================================
     ///===================================================================================
     ///===================================================================================
@@ -93,7 +93,7 @@ int main(int argc, char** argv) {
 
     /// Location of the ROS bag we want to read in
     std::string path_to_bag;
-    nh.param<std::string>("path_bag", path_to_bag, "/home/coui/catkin_ws/src/imu_lidar_calibration/figures/2021-04-16-10-32-05_far.bag");
+    nh.param<std::string>("path_bag", path_to_bag, "/home/coui/catkin_ws/bag/2021-04-16-10-32-05_far.bag");
     ROS_INFO_STREAM("ROS BAG PATH is: " << path_to_bag.c_str());
 
     /// Get our start location and how much of the bag we want to play
@@ -206,6 +206,7 @@ int main(int argc, char** argv) {
             // sys의 전달 객체를 반환하고 이 객체의 fast_state_propagate 함수를 실행
             // fast_state_propagate: EKF의 전달함수(현재 state, 추정하는 시간, 추정 state)
             sys->get_propagator()->fast_state_propagate(state, time_imu, state_plus);
+            // propgator == gravity
 
             
             // Our odometry message

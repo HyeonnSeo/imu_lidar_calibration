@@ -90,8 +90,8 @@ target_include_directories(linkalibr_lib PUBLIC src)
 ##################################################
 # Adding different executables
 ##################################################
-add_executable(ros_test_node src/ros_linkalibr_test.cpp)
-target_link_libraries(ros_test_node linkalibr_lib ${catkin_LIBRARIES})
+# add_executable(ros_test_node src/ros_linkalibr_test.cpp)
+# target_link_libraries(ros_test_node linkalibr_lib ${catkin_LIBRARIES})
 
 add_executable(ros_calib_init src/ros_calib_init.cpp)
 target_link_libraries(ros_calib_init linkalibr_lib ${catkin_LIBRARIES})
