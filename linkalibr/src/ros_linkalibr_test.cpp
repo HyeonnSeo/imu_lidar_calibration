@@ -60,6 +60,7 @@ void downSampleCloud(const pcl::PointCloud<lin_core::PointXYZIR8Y>::Ptr cloud_in
     }
 }
 
+
 int main(int argc, char** argv) {
     /// Launch ros node
     ros::init(argc, argv, "ros_test_node");
@@ -173,20 +174,24 @@ int main(int argc, char** argv) {
         lidar_trajectory_csv.open(lidar_trajectory_filename);
     }
     bool first_lodom = true;
+
+    // bag 파일 안에 들어가서 1 frame씩 가져옴 가져옴
     for (const rosbag::MessageInstance& m : view) {
         /// If ROS wants us to stop, break out
         if(!ros::ok())
             break;
 
-
+    
         /// Handle IMU measurement
+        // Bag 파일로부터 imu값을 계속 받아오고 IMU Propagation function에 이를 대입하고, sys 객체에 pu
         sensor_msgs::Imu::ConstPtr s_imu = m.instantiate<sensor_msgs::Imu>();
         if (s_imu != nullptr && m.getTopic() == topic_imu) {
             imu_pub.publish(s_imu);
             imu_frame_name = s_imu->header.frame_id;
             double time_imu = (*s_imu).header.stamp.toSec();
+            
 
-            Eigen::Matrix<double, 3, 1> wm, am;     // IMU의 가속도, 각속도 저장
+            Eigen::Matrix<double, 3, 1> wm, am;     // IMU의 가속도, 각속도 measurement 저장
             wm << (*s_imu).angular_velocity.x, (*s_imu).angular_velocity.y, (*s_imu).angular_velocity.z;
             am << (*s_imu).linear_acceleration.x, (*s_imu).linear_acceleration.y, (*s_imu).linear_acceleration.z;
 
@@ -200,22 +205,26 @@ int main(int argc, char** argv) {
             // 현재 상태를 추출
             State* state = sys->get_state();
         
-            //EKF의 추정 state를 저장할 공간 생성: (q_GtoI, p_IinG, v_IinG, w_IinI)
+            //EKF의 추정 state를 저장할 공간 생성: [q_GtoI(4x1), p_IinG(3x1), v_IinG(3x1), w_I2inI1(3x1)]
             Eigen::Matrix<double,13,1> state_plus = Eigen::Matrix<double,13,1>::Zero();
 
             // sys의 전달 객체를 반환하고 이 객체의 fast_state_propagate 함수를 실행
-            // fast_state_propagate: EKF의 전달함수(현재 state, 추정하는 시간, 추정 state)
-            sys->get_propagator()->fast_state_propagate(state, time_imu, state_plus);
-            // propgator == gravity
-
+            // fast_state_propagate: State estimate 과정의 전달함수(현재 state, 추정하는 시간, 추정 state)
+      
+            ROS_INFO("imu timestamp = %lf", state->_timestamp);
+            ROS_INFO("imu timestamp2 = %lf", time_imu);
+            sys->get_propagator()->fast_state_propagate(state, time_imu, state_plus);   
+            
+               
             
             // Our odometry message
             //// 추정한 state의 값을 포함한 Odometry 메세지 생성
-            nav_msgs::Odometry odomIinM;        // Odometry IMU in Measurement 
+            nav_msgs::Odometry odomIinM;        // IMU odometry in M time
             odomIinM.header.stamp = (*s_imu).header.stamp;
             odomIinM.header.frame_id = "map";
 
             // The POSE component (orientation and position)
+            // 추정한 state를 odomIinM 에 대입
             odomIinM.pose.pose.orientation.x = state_plus(0);
             odomIinM.pose.pose.orientation.y = state_plus(1);
             odomIinM.pose.pose.orientation.z = state_plus(2);
@@ -254,6 +263,7 @@ int main(int argc, char** argv) {
 
 
             // Velocity covariance (linear then angular)
+            // 선속도와 각속도의 공분산. 
             statevars.clear();
             statevars.push_back(state->_imu->v());
             Eigen::Matrix<double,6,6> covariance_linang = INFINITY*Eigen::Matrix<double,6,6>::Identity();
@@ -270,8 +280,9 @@ int main(int argc, char** argv) {
 
             /// Send it to our linkalibr system
             // IMU 측정값 업데이트
-            sys->feed_measurement_imu(time_imu, wm, am);
+            sys->feed_measurement_imu(time_imu, wm, am);        // 반복적으로 push_back해서 측정값들을 저장함
             no_of_imu++;
+            // ROS_INFO("imu time: %lf, %d", time_imu, no_of_imu);
         }
 
 
@@ -289,13 +300,19 @@ int main(int argc, char** argv) {
             double time_lidar = (*s_lidar).header.stamp.toSec();
             pcl::fromROSMsg(*s_lidar, *cloud);      //ros msg의 PointCloud 형식을 pcl PointCloud 형식으로 변환
 
-            /// TODO :  Try Downsampling here
-//            downSampleCloud(cloud, cloud_downsampled, 1);
+            ROS_INFO("lidar timestamp = %lf", time_lidar);
+
+            /// DownSample:t pointcloud 개수를 다운샘플링: 자세한 내용은 figures/Raw_vs_Downsaple.txt 참조
+            downSampleCloud(cloud, cloud_downsampled, 1);
             /// Send it to linkalibr system
 
             // feed_measurement_lidar: undistortion & lidar odometry
-            sys->feed_measurement_lidar(time_lidar, cloud);
+            // lidar의 측정값을 저장, NDT Scan matching, Deskewing scan
+            sys->feed_measurement_lidar(time_lidar, cloud_downsampled);
 
+            
+
+            // Deskewing을 통해 왜곡이 없어진 Point Cloud. 
             VPointCloud cloud_undistorted = sys->get_undistorted_cloud();
             sensor_msgs::PointCloud2 cloud_undistorted_ros;
             pcl::toROSMsg(cloud_undistorted, cloud_undistorted_ros);
@@ -312,31 +329,39 @@ int main(int argc, char** argv) {
             
             State* state_k = sys->get_state();
             Eigen::Vector3d G_t_Ik = state_k->_imu->pos();                  // G_t_Ik: G 기준 IMU 의 Pose Vector
-            Eigen::Vector4d Ik_quat_imu_G = state_k->_imu->quat();           
-            Eigen::Matrix3d Ik_R_G = lin_core::quat_2_Rot(Ik_quat_imu_G);  
-            Eigen::Matrix3d G_R_Ik = Ik_R_G.transpose();                    // G_R_Ik: G 기준 IMU 의 회전행렬
-            Eigen::Matrix4d G_T_Ik = Eigen::Matrix4d::Identity();
-            G_T_Ik.block(0, 0, 3, 3) = G_R_Ik;
-            G_T_Ik.block(0, 3, 3, 1) = G_t_Ik;                              // G_T_Ik: G 기준 IMU 의 변환행렬
-            Eigen::Quaterniond quat_imu_k_eig(G_R_Ik);
+            Eigen::Vector4d Ik_quat_imu_G = state_k->_imu->quat();          // Ik_quat_imu_G: G 기준 IMU의 회전(쿼터니언)
+            Eigen::Matrix3d Ik_R_G = lin_core::quat_2_Rot(Ik_quat_imu_G);   // 쿼터니언을 회전행렬로 변환: G기준 IMU의 회전행렬
+            Eigen::Matrix3d G_R_Ik = Ik_R_G.transpose();                    // G_R_Ik: IMU기준 G의 회전행렬
+            Eigen::Matrix4d G_T_Ik = Eigen::Matrix4d::Identity();           // G_T_Ik: G 기준 IMU 의 변환행렬
+            G_T_Ik.block(0, 0, 3, 3) = G_R_Ik;                              // G 기준 IMU 의 회전행렬을 변환행렬에 대입
+            G_T_Ik.block(0, 3, 3, 1) = G_t_Ik;                              // G 기준 IMU 의 이동행렬을 변환행렬에 대입
+            Eigen::Quaterniond quat_imu_k_eig(G_R_Ik);                      // G 기준 IMU 의 회전행렬을 쿼터니언으로 변환
+
+
 
             // ros의 tf라이브러리로 생성한 객체 transform1의 원점 설정
             transform1.setOrigin(tf::Vector3(G_t_Ik.x(), G_t_Ik.y(), G_t_Ik.z()));
             // transform1의 회전 설정
             transform1.setRotation(tf::Quaternion(quat_imu_k_eig.x(), quat_imu_k_eig.y(), quat_imu_k_eig.z(), quat_imu_k_eig.w()));
-            // tf 시스템에게 변환 메세지를 보내기
+            // tf 시스템에게 변환 메세지를 broadcast
             br1.sendTransform(tf::StampedTransform(transform1, (*s_lidar).header.stamp, "map", imu_frame_name));
 
+
             // IMU 와 Lidar의 timestamp 차이
-            // t_ItoL는 imu-Lidar 시간차이
+            // t_ItoL는 imu-Lidar 시간차이(t_offset): t_imu = t_lidar + t_offset
+            // _calib_dt_LIDARtoIMU는 1x1 vector 형식이기에 value()(0) 으로 받아옴
             double t_ItoL = state_k->_calib_dt_LIDARtoIMU->value()(0);
 
             // state_k->_timestamp 는 현재시간, t_ItoL는 imu-Lidar 시간차이 이므로
-            // 현재시간 + Imu-Lidar시간차이 => timestamp : timestamp 는 EKF의 step으로 IMU & Lidar의 일정한 순간에 catch 해야한다
+            // 현재시간 + Imu-Lidar시간차이 => timestamp : timestamp 는 EKF의 step으로 IMU & Lidar의 일정한 순간에 catch 해야한다.
+            // 
             double timestamp_inI = state_k->_timestamp + t_ItoL;
+            ROS_INFO("_timestamp = %lf", state_k->_timestamp);
+            ROS_INFO("t_ItoL = %lf", t_ItoL);
+            ROS_INFO("timestamp_inI = %lf", timestamp_inI);
 
             // Create pose of IMU (note we use the bag time)
-            // G 기준 IMU 의 Pose 메시지 작성: Pose 와 해당 Pose의 Covariance(불확실성)을 포함
+            // G 기준 IMU 의 Pose 메시지 작성: Pose 와 해당 Pose의 Covariance(불확실성)을 포함한 결과임
             geometry_msgs::PoseWithCovarianceStamped poseIinG;
             poseIinG.header.stamp = ros::Time(timestamp_inI);
             poseIinG.header.frame_id = "map";

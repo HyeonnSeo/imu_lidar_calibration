@@ -102,6 +102,8 @@ void Propagator::fast_state_propagate(State *state, /// Pointer to state
     /// First lets construct an IMU vector of measurements we need
     double time0 = state->_timestamp+last_prop_time_offset;
     double time1 = timestamp+t_off_new;
+
+
     vector<IMUDATA> prop_data = Propagator::select_IMU_readings(imu_data, time0, time1);
     /// Save the original IMU state
     Eigen::VectorXd orig_val = state->_imu->value();
@@ -113,6 +115,7 @@ void Propagator::fast_state_propagate(State *state, /// Pointer to state
         for(size_t i=0; i<prop_data.size()-1; i++) {
             /// Time elapsed over interval
             double dt = prop_data.at(i+1).timestamp-prop_data.at(i).timestamp;
+            // std::cout << "dt: " << dt << std::endl;
             //assert(data_plus.timestamp>data_minus.timestamp);
             /// Corrected imu measurements
             Eigen::Matrix<double,3,1> w_hat1 = prop_data.at(i).wm - state->_imu->bias_g();
