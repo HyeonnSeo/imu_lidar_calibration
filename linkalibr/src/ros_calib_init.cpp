@@ -180,6 +180,7 @@ int main(int argc, char** argv) {
             lodom_publisher.publish(pose);
 
             // IMU 정보를 publish -> /imu_packet 토픽
+            // IMU와 Lidar의 정보를 동시에 Publish
             imupacket.header.stamp = s_lidar->header.stamp;
             imu_packet_publisher.publish(imupacket);
 
