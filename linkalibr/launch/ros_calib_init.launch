@@ -9,8 +9,6 @@
 
 
             <!-- bag parameters -->
-<!--             <param name="path_bag"    type="string" value="/media/usl/37150acd-8dc7-4336-b1fb-90ffdd3488c5/ouster_vectornav/vectornav@400Hz/linkalibr_ouster_vectornav_data4_400Hz_far.bag" /> -->
-
             <param name="path_bag"    type="string" value="/home/coui/catkin_ws/bags/2021-04-16-10-32-05_far.bag" />
 
             <param name="bag_start"   type="double" value="0.0" />

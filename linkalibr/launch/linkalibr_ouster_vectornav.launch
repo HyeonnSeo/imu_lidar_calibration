@@ -33,15 +33,20 @@
         <param name="init_imu_thresh" type="double" value="0.25"/> <!-- jerk threshold -->
 
         <!-- Noise Parameters -->
-<!--         <param name="accelerometer_noise_density"  type="double"   value="0.094666" /> -->
-<!--         <param name="accelerometer_random_walk"    type="double"   value="0.278617" /> -->
-<!--         <param name="gyroscope_noise_density"      type="double"   value="0.00006243" /> -->
-<!--         <param name="gyroscope_random_walk"        type="double"   value="0.00000046" /> -->
-
+        <!-- Vectornav VN-300  -->
         <param name="accelerometer_noise_density"  type="double"   value="0.0015825749257056074" />
         <param name="accelerometer_random_walk"    type="double"   value="4.1557212532459854e-05" />
         <param name="gyroscope_noise_density"      type="double"   value="8.97991030686202e-05" />
         <param name="gyroscope_random_walk"        type="double"   value="7.253101866424753e-07" />
+
+        <!-- Microstrain 3DM-GX5-25  -->
+        <!-- <param name="accelerometer_noise_density"  type="double"   value="3.9939570888238808e-03" />
+        <param name="accelerometer_random_walk"    type="double"   value="6.4356659353532566e-05" />
+        <param name="gyroscope_noise_density"      type="double"   value="1.5636343949698187e-03" />
+        <param name="gyroscope_random_walk"        type="double"   value="3.5640318696367613e-05" /> -->
+
+
+
 
         <!-- Updater Parameters -->
         <!-- Chi2 Parameters -->
@@ -61,7 +66,12 @@
         <param name="state_init_timeoffset_noise" type="double" value="0.01" />
 
         <!-- Gravity -->
+        <!-- Vectornav VN-300  -->
         <rosparam param="gravity">[0.0, 0.0, 9.81]</rosparam>
+
+        <!-- Microstrain 3DM-GX5-25  -->
+        <!-- <rosparam param="gravity">[0.0, 0.0, 9.80511]</rosparam> -->
+        
 
         <!-- initialization of lidar imu time offset -->
         <param name="calib_lidarimu_dt" type="double" value="0.0" />

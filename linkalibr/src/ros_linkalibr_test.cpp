@@ -186,7 +186,7 @@ int main(int argc, char** argv) {
         // Bag 파일로부터 imu값을 계속 받아오고 IMU Propagation function에 이를 대입하고, sys 객체에 pu
         sensor_msgs::Imu::ConstPtr s_imu = m.instantiate<sensor_msgs::Imu>();
         if (s_imu != nullptr && m.getTopic() == topic_imu) {
-            ROS_INFO("IMU");
+            // ROS_INFO("IMU");
             imu_pub.publish(s_imu);
             imu_frame_name = s_imu->header.frame_id;
             double time_imu = (*s_imu).header.stamp.toSec();
@@ -292,7 +292,7 @@ int main(int argc, char** argv) {
         //bag 파일에서 PointCloud 값을 가져와 s_lidar 에 저장
         sensor_msgs::PointCloud2::ConstPtr s_lidar = m.instantiate<sensor_msgs::PointCloud2>();
         if (s_lidar != nullptr && m.getTopic() == topic_lidar) {
-            ROS_INFO("Lidar");
+            // ROS_INFO("Lidar");
             lidar_frame_name = s_lidar->header.frame_id;
             ROS_INFO_STREAM("No of imu measurements: " << no_of_imu);
             no_of_imu = 0;
@@ -478,7 +478,7 @@ int main(int argc, char** argv) {
             }
         }
 
-        ROS_INFO("step");
+        // ROS_INFO("step");
     }
 
     if(params.gen_map_data) {
