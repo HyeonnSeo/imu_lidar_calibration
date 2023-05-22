@@ -186,6 +186,7 @@ int main(int argc, char** argv) {
         // Bag 파일로부터 imu값을 계속 받아오고 IMU Propagation function에 이를 대입하고, sys 객체에 pu
         sensor_msgs::Imu::ConstPtr s_imu = m.instantiate<sensor_msgs::Imu>();
         if (s_imu != nullptr && m.getTopic() == topic_imu) {
+            ROS_INFO("IMU");
             imu_pub.publish(s_imu);
             imu_frame_name = s_imu->header.frame_id;
             double time_imu = (*s_imu).header.stamp.toSec();
@@ -211,8 +212,8 @@ int main(int argc, char** argv) {
             // sys의 전달 객체를 반환하고 이 객체의 fast_state_propagate 함수를 실행
             // fast_state_propagate: State estimate 과정의 전달함수(현재 state, 추정하는 시간, 추정 state)
       
-            ROS_INFO("imu timestamp = %lf", state->_timestamp);
-            ROS_INFO("imu timestamp2 = %lf", time_imu);
+            // ROS_INFO("imu timestamp = %lf", state->_timestamp);
+            // ROS_INFO("imu timestamp2 = %lf", time_imu);
             sys->get_propagator()->fast_state_propagate(state, time_imu, state_plus);   
             
                
@@ -291,6 +292,7 @@ int main(int argc, char** argv) {
         //bag 파일에서 PointCloud 값을 가져와 s_lidar 에 저장
         sensor_msgs::PointCloud2::ConstPtr s_lidar = m.instantiate<sensor_msgs::PointCloud2>();
         if (s_lidar != nullptr && m.getTopic() == topic_lidar) {
+            ROS_INFO("Lidar");
             lidar_frame_name = s_lidar->header.frame_id;
             ROS_INFO_STREAM("No of imu measurements: " << no_of_imu);
             no_of_imu = 0;
@@ -300,7 +302,7 @@ int main(int argc, char** argv) {
             double time_lidar = (*s_lidar).header.stamp.toSec();
             pcl::fromROSMsg(*s_lidar, *cloud);      //ros msg의 PointCloud 형식을 pcl PointCloud 형식으로 변환
 
-            ROS_INFO("lidar timestamp = %lf", time_lidar);
+            // ROS_INFO("lidar timestamp = %lf", time_lidar);
 
             /// DownSample:t pointcloud 개수를 다운샘플링: 자세한 내용은 figures/Raw_vs_Downsaple.txt 참조
             downSampleCloud(cloud, cloud_downsampled, 1);
@@ -356,9 +358,9 @@ int main(int argc, char** argv) {
             // 현재시간 + Imu-Lidar시간차이 => timestamp : timestamp 는 EKF의 step으로 IMU & Lidar의 일정한 순간에 catch 해야한다.
             // 
             double timestamp_inI = state_k->_timestamp + t_ItoL;
-            ROS_INFO("_timestamp = %lf", state_k->_timestamp);
-            ROS_INFO("t_ItoL = %lf", t_ItoL);
-            ROS_INFO("timestamp_inI = %lf", timestamp_inI);
+            // ROS_INFO("_timestamp = %lf", state_k->_timestamp);
+            // ROS_INFO("t_ItoL = %lf", t_ItoL);
+            // ROS_INFO("timestamp_inI = %lf", timestamp_inI);
 
             // Create pose of IMU (note we use the bag time)
             // G 기준 IMU 의 Pose 메시지 작성: Pose 와 해당 Pose의 Covariance(불확실성)을 포함한 결과임
@@ -475,6 +477,8 @@ int main(int argc, char** argv) {
                 map_pub.publish(map_cloud_ros);
             }
         }
+
+        ROS_INFO("step");
     }
 
     if(params.gen_map_data) {
