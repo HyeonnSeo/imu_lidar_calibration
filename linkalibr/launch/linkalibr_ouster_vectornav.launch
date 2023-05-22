@@ -14,7 +14,7 @@
 <!--         <param name = "path_bag" type="string" value="/media/usl/Untitled/Subodh/usl-data/camera_imu_lidar/2022-01-28-15-20-21.bag"/> -->
 <!--         <param name = "path_bag" type="string" value="/media/usl/Untitled/Subodh/usl-data/camera_imu_lidar/2022-01-28-15-30-47.bag"/> -->
 
-<!--         <param name="path_bag"    type="string" value="/home/usl/Downloads/2021-04-16-10-32-05_far.bag" /> -->
+        <param name="path_bag"    type="string" value="/home/coui/catkin_ws/bags/2021-04-16-10-32-05_far.bag" />
 
         <param name="bag_start"   type="double" value="0.0" />
         <param name="bag_durr"    type="int"    value="-1" />

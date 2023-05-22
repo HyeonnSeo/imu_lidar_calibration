@@ -81,7 +81,7 @@ int main(int argc, char** argv) {
 
     /// Location of the ROS bag we want to read in
     std::string path_to_bag;
-    nh.param<std::string>("path_bag", path_to_bag, "/home/coui/catkin_ws/bag/2021-04-16-10-32-05_far.bag");
+    nh.param<std::string>("path_bag", path_to_bag, "/home/coui/catkin_ws/bags/2021-04-16-10-32-05_far.bag");
     ROS_INFO_STREAM("ROS BAG PATH is: " << path_to_bag.c_str());
 
     /// Load rosbag here, and find messages we can play
@@ -112,8 +112,10 @@ int main(int argc, char** argv) {
 
     
 
-
+    // ROS_INFO_STREAM("ndt resolution: ", ndt_resolution);
     /// Lidar Odometry object (Tracker)
+
+    // Lidar Odometry 를 위한 객체 생성: lin_core::LidarOdometry --> NormalDistributionsTransform --> VoxelGridCovariance & ...
     lin_core::LidarOdometry::Ptr LOdom; 
     LOdom = std::make_shared<lin_core::LidarOdometry>(ndt_resolution, "", true);    // ndt_resolution 을 인수로 전달하여 초기화
     imu_packet::imu_packet imupacket;     // IMU 값 저장을 위한 객체 생성
@@ -151,11 +153,6 @@ int main(int argc, char** argv) {
             lin_core::VPointCloud::Ptr cloud_pcl(new lin_core::VPointCloud);
             pcl::fromROSMsg(*s_lidar, *cloud_pcl);
             
-            // ROS_INFO("cloud_pcl:");
-            // for (const auto &point : cloud_pcl->points)
-            // {
-            //     ROS_INFO("x=%f, y=%f, z=%f", point.x, point.y, point.z);
-            // }
 
             // // odometry 기반의 지도 업데이트: key scan 만 업데이트 하고 NDT 알고리즘을 돌림
             LOdom->feedScan((*s_lidar).header.stamp.toSec(), cloud_pcl);
@@ -167,7 +164,6 @@ int main(int argc, char** argv) {
             Eigen::Matrix3d deltaR_L = LOdom->get_latest_relativePose().odometry_ij.block(0, 0, 3, 3);
 
             
-            ROS_INFO_STREAM("deltaR_L = " << std::endl << deltaR_L);
 
 
 
@@ -191,14 +187,8 @@ int main(int argc, char** argv) {
             imupacket.stamps.clear();
             imupacket.accelreadings.clear();
             imupacket.gyroreadings.clear();
-            ROS_INFO("finish");
         }
     }
-
-    
-
-
-    ROS_INFO("EXIT_SUCCESS");
     return EXIT_SUCCESS;        
     // EQUIRED process [topic_publisher-2] has died! process has finished cleanly 라는 문구가 뜸
 }

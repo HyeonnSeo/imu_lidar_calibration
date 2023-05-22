@@ -6,7 +6,7 @@
         <param name="topic_lidar"    type="string" value="/os_cloud_node/points" />
 
         <!-- bag parameters -->
-        <param name="path_bag"    type="string" value="/home/usl/datasets/ouster_vectornav.bag" />
+        <param name="path_bag"    type="string" value="/home/coui/catkin_ws/bags/2021-04-16-10-32-05_far.bag" />
         <param name="bag_start"   type="double" value="0" />
         <param name="bag_durr"    type="int"    value="-1" />
 

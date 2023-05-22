@@ -69,7 +69,7 @@ list(APPEND thirdparty_libraries
         ${catkin_LIBRARIES}
         ${PCL_LIBRARIES}
         ${CERES_LIBRARIES}
-        gtsam
+        # gtsam // error 원인. 주석제거 금지!
         )
 
 ##################################################
@@ -87,14 +87,23 @@ add_library(linkalibr_lib SHARED
 target_link_libraries(linkalibr_lib ${thirdparty_libraries})
 target_include_directories(linkalibr_lib PUBLIC src)
 
+set(LIB_TBB_DIR /usr/lib/x86_64-linux-gnu)
+add_library(libtbb SHARED IMPORTED)
+set_target_properties(libtbb PROPERTIES IMPORTED_LOCATION ${LIB_TBB_DIR}/libtbb.so.2)
+
 ##################################################
 # Adding different executables
 ##################################################
-# add_executable(ros_test_node src/ros_linkalibr_test.cpp)
-# target_link_libraries(ros_test_node linkalibr_lib ${catkin_LIBRARIES})
+add_executable(ros_test_node src/ros_linkalibr_test.cpp)
+target_link_libraries(ros_test_node linkalibr_lib ${catkin_LIBRARIES})
 
 add_executable(ros_calib_init src/ros_calib_init.cpp)
 target_link_libraries(ros_calib_init linkalibr_lib ${catkin_LIBRARIES})
 
 add_executable(ros_calib_init_optimizer src/ros_calib_init_optimizer.cpp)
-target_link_libraries(ros_calib_init_optimizer linkalibr_lib ${thirdparty_libraries} libtbb)
+target_link_libraries(ros_calib_init_optimizer linkalibr_lib
+        gtsam       
+        ${catkin_LIBRARIES}
+        ${thirdparty_libraries}
+        libtbb)
+## 문제 해결:gtsam 을 위에서 지우고 여기서 넣어줌

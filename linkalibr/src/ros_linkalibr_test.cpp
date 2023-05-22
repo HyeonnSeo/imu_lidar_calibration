@@ -72,7 +72,7 @@ int main(int argc, char** argv) {
     sys = new lincalibManager(params);
     ros::Publisher cloud_pub = nh.advertise<sensor_msgs::PointCloud2>("/raw_cloud_out", 1);
     ros::Publisher imu_pose_pub = nh.advertise<geometry_msgs::PoseWithCovarianceStamped>("/imu_pose_out", 1);
-    ros::Publisher  imu_odom_pub = nh.advertise<nav_msgs::Odometry>("/imu_odom_out", 1);
+    ros::Publisher imu_odom_pub = nh.advertise<nav_msgs::Odometry>("/imu_odom_out", 1);
     ros::Publisher lidar_pose_pub = nh.advertise<geometry_msgs::PoseStamped>("/lidar_pose_out", 1);
     ros::Publisher planar_cloud_pub = nh.advertise<sensor_msgs::PointCloud2>("/planar_points_out", 1);
     ros::Publisher undistorted_cloud_pub = nh.advertise<sensor_msgs::PointCloud2>("/undistorted_cloud_out", 1);
@@ -93,7 +93,7 @@ int main(int argc, char** argv) {
 
     /// Location of the ROS bag we want to read in
     std::string path_to_bag;
-    nh.param<std::string>("path_bag", path_to_bag, "/home/coui/catkin_ws/bag/2021-04-16-10-32-05_far.bag");
+    nh.param<std::string>("path_bag", path_to_bag, "/home/coui/catkin_ws/bags/2021-04-16-10-32-05_far.bag");
     ROS_INFO_STREAM("ROS BAG PATH is: " << path_to_bag.c_str());
 
     /// Get our start location and how much of the bag we want to play

@@ -8,19 +8,19 @@ namespace lin_core {
 
     LidarOdometry::LidarOdometry(double ndt_resolution, std::string lo_trajectory_filename, bool downsample_for_mapping)
             : map_cloud_(new VPointCloud()), scan_in_target_global_(new VPointCloud()) {
-        ndt_omp_ = ndtInit(ndt_resolution);
+        ndt_omp_ = ndtInit(ndt_resolution);     // 0.25
         latestRP.odometry_ij = Eigen::Matrix4d::Identity();
         trajfile_csv.open(lo_trajectory_filename);
-        downsampleForMapping = downsample_for_mapping;
+        downsampleForMapping = downsample_for_mapping;  // true
     }
 
-    pclomp::NormalDistributionsTransform<VPoint, VPoint>::Ptr
+    pclomp::NormalDistributionsTransform<VPoint, VPoint>::Ptr  
     LidarOdometry::ndtInit(double ndt_resolution) {
         auto ndt_omp = pclomp::NormalDistributionsTransform<VPoint, VPoint>::Ptr
                 (new pclomp::NormalDistributionsTransform<VPoint, VPoint>());
         ndt_omp->setResolution(ndt_resolution);
         ndt_omp->setNumThreads(16);
-        ndt_omp->setNeighborhoodSearchMethod(pclomp::DIRECT7);
+        ndt_omp->setNeighborhoodSearchMethod(pclomp::KDTREE);
         ndt_omp->setTransformationEpsilon(1e-3);
         ndt_omp->setStepSize(0.01);
         ndt_omp->setMaximumIterations(50);
@@ -42,7 +42,8 @@ namespace lin_core {
         current_scan = *cur_scan;
         if(map_cloud_->empty()) {
             scan_in_target = cur_scan;
-        } else {
+        } 
+        else {
             Eigen::Matrix4d T_LM_predict = odom_.back().pose*pose_predict;
             registration(cur_scan, T_LM_predict, odom_curr.pose, scan_in_target);
         }
@@ -53,9 +54,10 @@ namespace lin_core {
             odom_.push_back(odom_curr);
 
             // updateKeyScan: Keyscan은 지도에 추가할 필요가 있는 스캔으로, 이전 스캔과 비교하여 판단. 
-            updateKeyScan(current_scan, odom_curr);         // Error!!!!
+            updateKeyScan(current_scan, odom_curr);    
             first_scan = false;
-        } else {        
+        } 
+        else {        
             // 첫 스캔이 아닌경우, 이전 스탭의 odom 과 비교하여 상대적인 위치의 변환을 행렬(latestRP)로 저장한다 
             size_t lastIdx = odom_.size() - 1;
             Odom odom_i = odom_[lastIdx];
@@ -65,9 +67,7 @@ namespace lin_core {
             latestRP.timestamp_j = odom_j.timestamp;
             Eigen::Matrix4d w_T_j = odom_j.pose;
             Eigen::Matrix4d i_T_j = w_T_i.inverse()*w_T_j;
-            latestRP.odometry_ij = i_T_j;
-
-            ROS_INFO("test");
+            latestRP.odometry_ij = i_T_j;   
         }
     }
 
@@ -95,11 +95,11 @@ namespace lin_core {
         // 다운 샘플링
         downsampleCloud(cur_scan, p_filtered_cloud, 0.1);
 
+
+
         // NDT 알고리즘 수행
         ndt_omp_->setInputSource(p_filtered_cloud);
         ndt_omp_->align(*scan_in_target, pose_predict.cast<float>());
-
-        //
         pose_out = ndt_omp_->getFinalTransformation().cast<double>();
     }
 
@@ -119,41 +119,22 @@ namespace lin_core {
                 *filtered_cloud = *input_scan;
             }
 
-            // ROS_INFO("input = %d", sizeof(input_scan));
-            // ROS_INFO("filtered = %d", sizeof(filtered_cloud));
-
             VPointCloud::Ptr scan_in_target(new VPointCloud ());
 
             // odom.pose 변환행렬을 사용하여 filtered_cloud 를 변환시켜 scan_in_target에 저장
             pcl::transformPointCloud(*filtered_cloud, *scan_in_target, odom.pose);
 
-            ROS_INFO("aaaaaaaaaaaaaaaaaaaaaaaaaaa");
+            
             
             scan_in_target_global_->clear();
             *scan_in_target_global_ = *scan_in_target;
-
-            ROS_INFO("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
+            
 
             // // 지도에 추가
             *map_cloud_ += *scan_in_target;
 
-            // // NDT 알고리즘 수행
-            // setInputTarget(const PointCloudTargetConstPtr &cloud)
 
-
-            
-            // typedef pcl::PointXYZI VPoint;
-            // typedef pcl::PointCloud<VPoint> VPointCloud;
-            // VPointCloud::Ptr map_cloud_;
-
-            // pcl::PointCloud<pcl::PointXYZ>::Ptr map_cloud_(new pcl::PointCloud<pcl::PointXYZ>());
-            
-
-            ndt_omp_->setInputTarget(map_cloud_);
-
-            
-
-            ROS_INFO("cccccccccccccc");
+            ndt_omp_->setInputTarget(map_cloud_);       // error
 
             // odom_.size: 객체수를 반환
             // key_frame_index_ 벡터에는 키프레임이 발생하는 시점의 odom 정보의 인덱스가 저장되게 됨
