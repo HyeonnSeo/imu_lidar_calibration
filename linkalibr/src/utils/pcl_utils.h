@@ -24,9 +24,12 @@ namespace lin_core {
         PCL_ADD_POINT4D
         ; // quad-word XYZ
         float intensity; ///< laser intensity reading
-        uint8_t ring; ///< laser ring number
-        uint32_t t;
-        float range;EIGEN_MAKE_ALIGNED_OPERATOR_NEW // ensure proper alignment
+        // uint8_t ring; // OS
+        // uint32_t t;   // OS
+        uint16_t ring;   // VLP
+        float time;      // VLP
+        // float range;
+        EIGEN_MAKE_ALIGNED_OPERATOR_NEW // ensure proper alignment
     } EIGEN_ALIGN16;
 
     inline void downsampleCloud(pcl::PointCloud<pcl::PointXYZI>::Ptr in_cloud,
@@ -45,8 +48,10 @@ POINT_CLOUD_REGISTER_POINT_STRUCT(
              (float, y, y)
              (float, z, z)
              (float, intensity, intensity)
-             (std::uint8_t, ring, ring)     // 기존에는 std가 없음
-             (std::uint32_t, t, t))
+            //  (std::uint8_t, ring, ring)    
+            //  (std::uint32_t, t, t))
+             (std::uint16_t, ring, ring) 
+             (float, time, time))
 
 typedef lin_core::PointXYZIR8Y TPoint;
 typedef pcl::PointCloud<TPoint> TPointCloud;

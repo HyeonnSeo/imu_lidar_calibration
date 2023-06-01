@@ -44,7 +44,9 @@ bool InertialInitializer::initialize_with_imu(double &time0, /// Timestamp that 
     /// One is from the newest measurement to 1 window_length back in time
     /// Second is from 1 window_length back in time to 2 window_lengths back in time
     std::vector<IMUDATA> window_newest, window_secondnew;
-    for(IMUDATA data : imu_data) {
+
+    // IMU 각각의 데이터에 대해 검사하는 for문. data에 각 imu_data를 할당
+    for(IMUDATA data : imu_data) {  
         if(data.timestamp > newesttime - 1*_window_length && data.timestamp <= newesttime) {
             window_newest.emplace_back(data);
         }
@@ -71,6 +73,8 @@ bool InertialInitializer::initialize_with_imu(double &time0, /// Timestamp that 
     }
     a_var /= ((int)window_newest.size()-1);
     double a_stdev = std::sqrt(a_var);
+
+    std::cout << "now: " << a_stdev << std::endl;
 
     /// If the above standard dev is below a threshold and we are waiting for a "jerk" then we want to wait till it is exceeded
     if(a_stdev < _imu_excite_threshold && wait_for_jerk) {

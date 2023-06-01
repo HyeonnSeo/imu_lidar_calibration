@@ -80,10 +80,11 @@ void lin_estimator::lincalibManager::do_undistortion(double timestamp,
     scan_out->width = scan_raw.width;
     scan_out->is_dense = scan_raw.is_dense;
     scan_out->resize(scan_raw.width*scan_raw.height);
+
     for(int h = 0; h < scan_raw.height; h++) {
         for(int w = 0; w < scan_raw.width; w++) {
             TPoint scan_point = scan_raw.at(w, h);
-            uint32_t point_timestamp = scan_raw.at(w, h).t;
+            uint32_t point_timestamp = scan_raw.at(w, h).time;
             Eigen::Vector3d skewedPoint = Eigen::Vector3d(scan_point.x, scan_point.y, scan_point.z);
             /// Ignore NaNs
             if(isnan(scan_point.x) || isnan(scan_point.y) || isnan(scan_point.z)) {
@@ -116,7 +117,7 @@ void lin_estimator::lincalibManager::do_undistortion(double timestamp,
             deskewed_scan_point.z = deskewedPoint.z();
             deskewed_scan_point.intensity = scan_point.intensity;
             deskewed_scan_point.ring = scan_point.ring;
-            deskewed_scan_point.range = scan_point.range;
+            // deskewed_scan_point.range = scan_point.range;
             scan_out->at(w, h) = deskewed_scan_point;
         }
     }
@@ -221,6 +222,7 @@ void lin_estimator::lincalibManager::feed_measurement_imu(double timestamp, Eige
 
 void lin_estimator::lincalibManager::feed_measurement_lidar(double timestamp, TPointCloud ::Ptr cloud_raw) {
     if(!is_initialized_linkalibr) {
+        std::cout<< "Init" << std::endl;
         is_initialized_linkalibr = try_to_initialize();
         if(!is_initialized_linkalibr)
             return;
@@ -249,7 +251,7 @@ void lin_estimator::lincalibManager::feed_measurement_lidar(double timestamp, TP
     /// Propagate and Update
     do_propagate_update(timestamp);
 
-    if(state->_clones_IMU.size() == 1) {
+    if(state->_clones_IMU.size() == 1) {    // 첫번째 Timestamp 저장하는 부분
         /// G_T_I1
         Eigen::Matrix<double, 4, 1> q_GtoI1 = state->_imu->quat();
         Eigen::Matrix3d I1_R_G = lin_core::quat_2_Rot(q_GtoI1);

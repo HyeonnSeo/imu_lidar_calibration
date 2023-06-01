@@ -33,7 +33,10 @@
 
 #include <boost/system/error_code.hpp>
 
+#include <pcl/conversions.h>
+
 using namespace lin_estimator;
+using namespace pcl_conversions;
 
 lincalibManager *sys;
 
@@ -59,7 +62,6 @@ void downSampleCloud(const pcl::PointCloud<lin_core::PointXYZIR8Y>::Ptr cloud_in
         }
     }
 }
-
 
 int main(int argc, char** argv) {
     /// Launch ros node
@@ -300,17 +302,44 @@ int main(int argc, char** argv) {
             // raw PointCloud를 Pub
             cloud_pub.publish(*s_lidar);
             double time_lidar = (*s_lidar).header.stamp.toSec();
+
+            // ROS_INFO("Lidar time: %lf", time_lidar);
+
+            
+            for(int i=0;i<s_lidar->fields.size();i++){
+            //     std::cout << "field[" << i << "]: " << s_lidar->fields[i].name << std::endl;
+            //     std::cout << "field[" << i << "] datatype: " << (int)s_lidar->fields[i].datatype << std::endl;
+            //     std::cout << "field[" << i << "] data: " << (float)s_lidar->data[i] << std::endl;
+                
+            //     // INT8    = 1
+            //     // UINT8   = 2
+            //     // INT16   = 3
+            //     // UINT16  = 4
+            //     // INT32   = 5
+            //     // UINT32  = 6
+            //     // FLOAT32 = 7
+            //     // FLOAT64 = 8 의 형식을 갖고있음
+            }
+
+
+
             pcl::fromROSMsg(*s_lidar, *cloud);      //ros msg의 PointCloud 형식을 pcl PointCloud 형식으로 변환
+
+            for (auto &point : cloud->points)
+            {
+                std::swap(point.x, point.y);
+                point.x *= -1.0f;                
+            }
 
             // ROS_INFO("lidar timestamp = %lf", time_lidar);
 
-            /// DownSample:t pointcloud 개수를 다운샘플링: 자세한 내용은 figures/Raw_vs_Downsaple.txt 참조
-            downSampleCloud(cloud, cloud_downsampled, 1);
-            /// Send it to linkalibr system
+            /// DownSample:t pointcloud 개수를 다운샘플링: 자세한 내용은 figures/Raw_vs_Downsample.txt 참조
+            // downSampleCloud(cloud, cloud_downsampled, 1);
+
 
             // feed_measurement_lidar: undistortion & lidar odometry
             // lidar의 측정값을 저장, NDT Scan matching, Deskewing scan
-            sys->feed_measurement_lidar(time_lidar, cloud_downsampled);
+            sys->feed_measurement_lidar(time_lidar, cloud);
 
             
 
@@ -355,12 +384,8 @@ int main(int argc, char** argv) {
             double t_ItoL = state_k->_calib_dt_LIDARtoIMU->value()(0);
 
             // state_k->_timestamp 는 현재시간, t_ItoL는 imu-Lidar 시간차이 이므로
-            // 현재시간 + Imu-Lidar시간차이 => timestamp : timestamp 는 EKF의 step으로 IMU & Lidar의 일정한 순간에 catch 해야한다.
-            // 
+            // 현재시간 + Imu-Lidar시간차이 => timestamp : timestamp 는 EKF의 step으로 IMU & Lidar의 일정한 순간에 catch 해야한다
             double timestamp_inI = state_k->_timestamp + t_ItoL;
-            // ROS_INFO("_timestamp = %lf", state_k->_timestamp);
-            // ROS_INFO("t_ItoL = %lf", t_ItoL);
-            // ROS_INFO("timestamp_inI = %lf", timestamp_inI);
 
             // Create pose of IMU (note we use the bag time)
             // G 기준 IMU 의 Pose 메시지 작성: Pose 와 해당 Pose의 Covariance(불확실성)을 포함한 결과임
@@ -471,7 +496,15 @@ int main(int argc, char** argv) {
             if(sys->get_track_lodom()->isKeyFrame()) {
                 map_cloud = sys->get_track_lodom()->getTargetMap();
                 sensor_msgs::PointCloud2 map_cloud_ros;
+
+                // for (auto &point : map_cloud->points)
+                // {
+                //     point.x *= -1.0f;
+                //     std::swap(point.x, point.y);
+                // }
                 pcl::toROSMsg(*map_cloud, map_cloud_ros);
+
+                
                 map_cloud_ros.header.frame_id = "os_lidar_1";
                 map_cloud_ros.header.stamp = s_lidar->header.stamp;
                 map_pub.publish(map_cloud_ros);
@@ -517,11 +550,15 @@ int main(int argc, char** argv) {
     result_calibration.open(params.calibration_result_filename.c_str());
     result_calibration << I_T_L;
     result_calibration.close();
+    ROS_INFO_STREAM("ROS BAG PATH is: " << path_to_bag.c_str());
     std::cout << "I_T_L: " << std::endl;
     std::cout << I_T_L << std::endl;
     Eigen::Vector3d eulerXYZ = I_R_L.eulerAngles(0, 1, 2)*180/M_PI;
-    ROS_INFO_STREAM("Translation [in m]: " << I_t_L.transpose());
-    ROS_INFO_STREAM("Euler Angles [in deg]: " << eulerXYZ.transpose());
+    std::cout << "Translation [in m]: "<< I_t_L.transpose() << std::endl;
+    std::cout << "Euler Angles [in deg]: "<< eulerXYZ.transpose() << std::endl;
+
+    // ROS_INFO_STREAM("Translation [in m]: " << I_t_L.transpose());
+    // ROS_INFO_STREAM("Euler Angles [in deg]: " << eulerXYZ.transpose());
 
     return EXIT_SUCCESS;
 }

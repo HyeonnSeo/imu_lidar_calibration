@@ -97,8 +97,6 @@ public:
         //callback 함수의 인자는 _1 과 _2
         sync->registerCallback(boost::bind(&calibInitOptimizer::callback, this, _1, _2));
 
-        ROS_INFO("aaaaa");
-        
         accelerometer_noise_density = readParam<double>(nh, "accelerometer_noise_density");
         gyroscope_noise_density = readParam<double>(nh, "gyroscope_noise_density");
         // max_frame 은 calibration 에 사용되는 데이터 샘플 개수로, 많아지면 정확도가 향상되지만 연산 속도는 느려짐
@@ -183,6 +181,9 @@ public:
         quat_L.y() = pose_msg->pose.orientation.y;
         quat_L.z() = pose_msg->pose.orientation.z;
         quat_L.w() = pose_msg->pose.orientation.w;
+
+        
+
         // Lidar의 쿼터니언을 회전행렬 변환
         Eigen::Matrix3d deltaR_L(quat_L);
 
@@ -191,6 +192,8 @@ public:
         Eigen::Vector3d axisAngle_imu;
         ceres::RotationMatrixToAngleAxis(deltaR_L.data(), axisAngle_lidar.data());
         ceres::RotationMatrixToAngleAxis(deltaR_I.data(), axisAngle_imu.data());
+
+        
 
         /// GTSAM stuff
         // IMU-Lidar 사이의 회전행렬의 오차를 최소화 하는 "그래프 최적화"

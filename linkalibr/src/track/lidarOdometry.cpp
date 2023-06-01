@@ -68,6 +68,7 @@ namespace lin_core {
             Eigen::Matrix4d w_T_j = odom_j.pose;
             Eigen::Matrix4d i_T_j = w_T_i.inverse()*w_T_j;
             latestRP.odometry_ij = i_T_j;   
+            // std::cout << "RP: " << std::endl;
         }
     }
 
@@ -134,7 +135,7 @@ namespace lin_core {
             *map_cloud_ += *scan_in_target;
 
 
-            ndt_omp_->setInputTarget(map_cloud_);       // error
+            ndt_omp_->setInputTarget(map_cloud_); 
 
             // odom_.size: 객체수를 반환
             // key_frame_index_ 벡터에는 키프레임이 발생하는 시점의 odom 정보의 인덱스가 저장되게 됨
@@ -165,11 +166,18 @@ namespace lin_core {
         for (size_t i = 0; i < 3; i++)
             delta_angle(i) = normalize_angle(delta_angle(i));
         delta_angle = delta_angle.cwiseAbs();
+        
+        
         if (key_frame_index_.size() == 0 ||
             dist > 0.2 ||
             delta_angle(0) > 5.0 ||
             delta_angle(1) > 5.0 ||
             delta_angle(2) > 5.0) {
+            // std::cout << "dist: " << dist << std::endl;
+            // std::cout << "delta_angle Y: " << delta_angle(0) << std::endl;
+            // std::cout << "delta_angle P: " << delta_angle(1) << std::endl;
+            // std::cout << "delta_angle R: " << delta_angle(2) << std::endl;
+
             position_last = position_now;
             ypr_last = ypr;
             is_KF_ = true;

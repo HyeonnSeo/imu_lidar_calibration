@@ -20,10 +20,6 @@
 8. ROS BAG 파일에서 데이터를 읽으며, IMU 및 LIDAR 데이터를 처리하여 IMU 패킷 및 로봇의 위치 추정 결과를 발행합니다.
 
 9. ROS 노드를 종료합니다.
-
-
- 
-
 */
 
 
@@ -154,6 +150,18 @@ int main(int argc, char** argv) {
             pcl::fromROSMsg(*s_lidar, *cloud_pcl);
             
 
+            for (auto &point : cloud_pcl->points)
+            {
+                // std::cout << "X: " << point.x << std::endl;
+                // std::cout << "Y: " << point.y << std::endl;
+                
+                std::swap(point.x, point.y);
+                point.x *= -1.0f;
+                // std::cout << "X2: " << point.x << std::endl;
+                // std::cout << "Y2: " << point.y << std::endl;
+                
+            }
+
             // // odometry 기반의 지도 업데이트: key scan 만 업데이트 하고 NDT 알고리즘을 돌림
             LOdom->feedScan((*s_lidar).header.stamp.toSec(), cloud_pcl);
             LOdom->append_and_update(true);
@@ -163,12 +171,14 @@ int main(int argc, char** argv) {
             // 기존 odom 과 현재 odom 의 변환행렬(lastestRP)의 상단 3x3 부분을 추출하여 deltaR_L 에 저장
             Eigen::Matrix3d deltaR_L = LOdom->get_latest_relativePose().odometry_ij.block(0, 0, 3, 3);
 
-            
-
-
-
             // 쿼터니언으로 변환
             Eigen::Quaterniond delta_qL(deltaR_L);
+
+            // // Yaw 축으로 -90도 회전
+            // double yaw = -90.0 * M_PI / 180.0;  // -90도를 라디안 단위로 변환
+            // Eigen::Quaterniond rotation(Eigen::AngleAxisd(yaw, Eigen::Vector3d::UnitZ()));
+            // delta_qL = rotation * delta_qL;
+
 
             // ros의 pose 메세지 형태로 쿼터니언과 lidar 스캔의 현재 시간정보를 저장하여 publish -> /lidar_odometry 토픽
             geometry_msgs::PoseStamped pose;
