@@ -2,20 +2,18 @@
 
     <!-- MASTER NODE! -->
     <node name="ros_test_node" pkg="linkalibr" type="ros_test_node" output="screen" clear_params="true" required="true">
-<!--        <node name="run_serial_msckf" pkg="ov_msckf" type="run_serial_msckf" output="screen" clear_params="true" required="true" launch-prefix="gdb -ex run &#45;&#45;args">-->
+
         <!-- bag topics -->
-        
-        <!-- <param name="topic_imu"    type="string" value="/vectornav/IMU" /> -->
+        <!-- ## Ouster, Vectornav ## -->
+        <!-- <param name="topic_imu"    type="string" value="/vectornav/IMU" /> --> 
         <!-- <param name="topic_lidar"  type="string" value="/os_cloud_node/points" />        -->
+        
+        <!-- ## VLP16, Microstrain IMU ## -->
         <param name="topic_imu"    type="string" value="/imu/data" />
         <param name="topic_lidar"    type="string" value="/velodyne_points" />
 
         <!-- bag parameters -->
-        <!-- <param name="path_bag"    type="string" value="/home/coui/catkin_ws/bags/2021-04-16-10-32-05_far.bag" /> -->
-        <!-- <param name="path_bag"    type="string" value="/home/coui/catkin_ws/bags/2023-05-24-17-34-29.bag" />-->
         <param name="path_bag"    type="string" value="/home/coui/catkin_ws/bags/0531_pos2.bag" /> 
-        
-
         <param name="bag_start"   type="double" value="0.0" />
         <param name="bag_durr"    type="int"    value="-1" />
 
@@ -28,12 +26,13 @@
         <param name="max_clones" type="int" value="2" />
         <param name="updater_do_chi2_check" type="bool" value="false"/>
 
-        <!-- Filter Init Parameters 0.005 0.25  , 0.5 0.25 -->
+        <!-- Filter Init Parameters: imu의 init을 위한 파라미터 -->
         <param name="init_window_time" type="double" value="0.5"/> <!-- in second -->
         <param name="init_imu_thresh" type="double" value="0.25"/> <!-- jerk threshold -->
 
-        <!-- Noise Parameters -->
-        <!-- Vectornav VN-300  -->
+        <!-- IMU Noise Parameters: Datesheet 참조 -->
+
+        <!-- ##Vectornav VN-300##  -->
         <!-- <param name="accelerometer_noise_density"  type="double"   value="0.0015825749257056074" />
         <param name="accelerometer_random_walk"    type="double"   value="4.1557212532459854e-05" />
         <param name="gyroscope_noise_density"      type="double"   value="8.97991030686202e-05" />
@@ -65,8 +64,9 @@
 
         <param name="state_init_timeoffset_noise" type="double" value="0.01" />
 
-        <!-- Gravity -->
-        <!-- Vectornav VN-300  -->
+        <!-- IMU Gravity -->
+
+        <!-- ##Vectornav VN-300##  -->
         <!-- <rosparam param="gravity">[0.0, 0.0, 9.81]</rosparam> -->
 
         <!-- Microstrain 3DM-GX5-25  -->

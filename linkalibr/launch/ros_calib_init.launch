@@ -22,10 +22,14 @@
     </node>
 
     <node name="ros_calib_init_optimizer" pkg="linkalibr" type="ros_calib_init_optimizer" output="screen" clear_params="true" required="true">
+            <!-- ## bag 파일의 길이에 따라서 max_frames를 정해줌. ## -->
             <param name="max_frames"      type="int"   value="400" />
+            
+            <!-- ##Vectornav VN-300##  -->
             <!-- <param name="gyroscope_noise_density"      type="double"   value="0.00006243" />
             <param name="accelerometer_noise_density"  type="double"   value="0.094666" /> -->
-
+            
+            <!-- Microstrain 3DM-GX5-25  -->
             <param name="gyroscope_noise_density"      type="double"   value="1.5636343949698187e-03" />
             <param name="accelerometer_noise_density"  type="double"   value="3.9939570888238808e-03" />
 
