@@ -48,10 +48,10 @@ POINT_CLOUD_REGISTER_POINT_STRUCT(
              (float, y, y)
              (float, z, z)
              (float, intensity, intensity)
-            //  (std::uint8_t, ring, ring)    
-            //  (std::uint32_t, t, t))
-             (std::uint16_t, ring, ring) 
-             (float, time, time))
+            //  (std::uint8_t, ring, ring)  // OS
+            //  (std::uint32_t, t, t))      // OS
+             (std::uint16_t, ring, ring)    // VLP
+             (float, time, time))           // VLP
 
 typedef lin_core::PointXYZIR8Y TPoint;
 typedef pcl::PointCloud<TPoint> TPointCloud;

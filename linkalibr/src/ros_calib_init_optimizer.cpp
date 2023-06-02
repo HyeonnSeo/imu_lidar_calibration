@@ -91,7 +91,7 @@ public:
         pose_sub = new message_filters::Subscriber<geometry_msgs::PoseStamped>(nh, "/lidar_odometry", 1);
 
 
-        // sub들을 동기화. 두 메세지의 시간차이가 10ms 이내일때 set로 만들어 동시에 처리 callback
+        // sub들을 동기화
         // set1 = (imu msg 1개, lidar msg 1개)
         sync = new message_filters::Synchronizer<SyncPolicy>(SyncPolicy(10), *imupacket_sub, *pose_sub);
         //callback 함수의 인자는 _1 과 _2
@@ -182,8 +182,6 @@ public:
         quat_L.z() = pose_msg->pose.orientation.z;
         quat_L.w() = pose_msg->pose.orientation.w;
 
-        
-
         // Lidar의 쿼터니언을 회전행렬 변환
         Eigen::Matrix3d deltaR_L(quat_L);
 
@@ -193,11 +191,9 @@ public:
         ceres::RotationMatrixToAngleAxis(deltaR_L.data(), axisAngle_lidar.data());
         ceres::RotationMatrixToAngleAxis(deltaR_I.data(), axisAngle_imu.data());
 
-        
 
-        /// GTSAM stuff
+        /// GTSAM
         // IMU-Lidar 사이의 회전행렬의 오차를 최소화 하는 "그래프 최적화"
-
         // graph.add(Factor<>(a,b,c)): a는 step이고 R(0)=(r,0) 반화, b는 step의 측정값, c는 측정 Noise 
         graph.add(boost::make_shared<HECFactor>(R(0), gtsam::Point3(axisAngle_imu.x(),axisAngle_imu.y(),axisAngle_imu.z()),
                 gtsam::Point3(axisAngle_lidar.x(), axisAngle_lidar.y(), axisAngle_lidar.z()), rotationNoise));

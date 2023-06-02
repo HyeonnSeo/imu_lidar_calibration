@@ -22,7 +22,8 @@
     </node>
 
     <node name="ros_calib_init_optimizer" pkg="linkalibr" type="ros_calib_init_optimizer" output="screen" clear_params="true" required="true">
-            <!-- ## bag 파일의 길이에 따라서 max_frames를 정해줌. ## -->
+            <!-- ## bag 파일의 길이에 따라서 max_frames를 정해줌.
+            max_frame 은 calibration 에 사용되는 데이터 샘플 개수로, 많아지면 정확도가 향상되지만 연산 속도는 느려짐 ## -->
             <param name="max_frames"      type="int"   value="400" />
             
             <!-- ##Vectornav VN-300##  -->

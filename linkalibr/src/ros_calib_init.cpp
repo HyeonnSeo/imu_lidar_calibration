@@ -24,7 +24,7 @@
 
 
 
-#define PCL_NO_PRECOMPILE // !! BEFORE ANY PCL INCLUDE!!
+#define PCL_NO_PRECOMPILE 
 
 #include "ros/ros.h"
 #include <rosbag/bag.h>
@@ -39,16 +39,12 @@
 #include  <iostream>
 #include "track/lidarOdometry.h"
 
-// #include <imuPacket/imuPacket.h>
 #include <imu_packet/imu_packet.h>
 
 int main(int argc, char** argv) {
     /// Launch ros node
     ros::init(argc, argv, "ros_pair_lodom_imu");
     ros::NodeHandle nh("~");
-    
-
-    ROS_INFO("aaa");
 
     ros::Publisher imu_packet_publisher = nh.advertise<imu_packet::imu_packet>("/imu_packet", 1);
     ros::Publisher lodom_publisher = nh.advertise<geometry_msgs::PoseStamped>("/lidar_odometry", 1);
@@ -77,6 +73,7 @@ int main(int argc, char** argv) {
 
     /// Location of the ROS bag we want to read in
     std::string path_to_bag;
+    // bag파일의 경로. Default는 2021-04-16-10-32-05_far.bag --> 패키지 작성장의 bag파일로 ouster 라이다와 Vectornav IMU를 사용함
     nh.param<std::string>("path_bag", path_to_bag, "/home/coui/catkin_ws/bags/2021-04-16-10-32-05_far.bag");
     ROS_INFO_STREAM("ROS BAG PATH is: " << path_to_bag.c_str());
 
@@ -106,10 +103,6 @@ int main(int argc, char** argv) {
         return EXIT_FAILURE;
     }
 
-    
-
-    // ROS_INFO_STREAM("ndt resolution: ", ndt_resolution);
-    /// Lidar Odometry object (Tracker)
 
     // Lidar Odometry 를 위한 객체 생성: lin_core::LidarOdometry --> NormalDistributionsTransform --> VoxelGridCovariance & ...
     lin_core::LidarOdometry::Ptr LOdom; 
@@ -139,8 +132,7 @@ int main(int argc, char** argv) {
             imupacket.gyroreadings.push_back(gyroReading);          // IMU 의 gyro accel 값을 imupacket 에 저장
         }
 
-        
-
+    
         /// Handle Lidar measurement
         sensor_msgs::PointCloud2::ConstPtr s_lidar = m.instantiate<sensor_msgs::PointCloud2>();
     
@@ -152,33 +144,19 @@ int main(int argc, char** argv) {
 
             for (auto &point : cloud_pcl->points)
             {
-                // std::cout << "X: " << point.x << std::endl;
-                // std::cout << "Y: " << point.y << std::endl;
-                
                 std::swap(point.x, point.y);
-                point.x *= -1.0f;
-                // std::cout << "X2: " << point.x << std::endl;
-                // std::cout << "Y2: " << point.y << std::endl;
-                
+                point.x *= -1.0f;                
             }
 
             // // odometry 기반의 지도 업데이트: key scan 만 업데이트 하고 NDT 알고리즘을 돌림
             LOdom->feedScan((*s_lidar).header.stamp.toSec(), cloud_pcl);
             LOdom->append_and_update(true);
 
-
-
-            // 기존 odom 과 현재 odom 의 변환행렬(lastestRP)의 상단 3x3 부분을 추출하여 deltaR_L 에 저장
+            // 라이다의 기존 odom 과 현재 odom 의 변환행렬(lastestRP)의 상단 3x3 부분을 추출하여 deltaR_L 에 저장
             Eigen::Matrix3d deltaR_L = LOdom->get_latest_relativePose().odometry_ij.block(0, 0, 3, 3);
 
             // 쿼터니언으로 변환
             Eigen::Quaterniond delta_qL(deltaR_L);
-
-            // // Yaw 축으로 -90도 회전
-            // double yaw = -90.0 * M_PI / 180.0;  // -90도를 라디안 단위로 변환
-            // Eigen::Quaterniond rotation(Eigen::AngleAxisd(yaw, Eigen::Vector3d::UnitZ()));
-            // delta_qL = rotation * delta_qL;
-
 
             // ros의 pose 메세지 형태로 쿼터니언과 lidar 스캔의 현재 시간정보를 저장하여 publish -> /lidar_odometry 토픽
             geometry_msgs::PoseStamped pose;

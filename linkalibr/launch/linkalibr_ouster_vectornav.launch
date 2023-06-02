@@ -26,8 +26,8 @@
         <param name="max_clones" type="int" value="2" />
         <param name="updater_do_chi2_check" type="bool" value="false"/>
 
-        <!-- Filter Init Parameters: imu의 init을 위한 파라미터 -->
-        <param name="init_window_time" type="double" value="0.5"/> <!-- in second -->
+        <!-- Filter Init Parameters: imu의 init을 위한 파라미터. EKF에는 영향x -->
+        <param name="init_window_time" type="double" value="1"/> <!-- in second -->
         <param name="init_imu_thresh" type="double" value="0.25"/> <!-- jerk threshold -->
 
         <!-- IMU Noise Parameters: Datesheet 참조 -->
@@ -98,7 +98,7 @@
         <param name="lo_trajectory_filename" type="string" value="/home/coui/catkin_ws/src/imu_lidar_calibration/linkalibr/data/coui/lo_trajectorylin_trajectory_undistortedcloud.csv"/>
 
         <!-- NDT Resolution -->
-        <param name="ndt_resolution" type="double" value="0.25"/>
+        <param name="ndt_resolution" type="double" value="0.1"/>
 
         <!-- Undistortion flag-->
         <param name="do_undistortion" type="bool" value="true" />

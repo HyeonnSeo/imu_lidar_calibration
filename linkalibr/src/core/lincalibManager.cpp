@@ -83,8 +83,8 @@ void lin_estimator::lincalibManager::do_undistortion(double timestamp,
 
     for(int h = 0; h < scan_raw.height; h++) {
         for(int w = 0; w < scan_raw.width; w++) {
-            TPoint scan_point = scan_raw.at(w, h);
-            uint32_t point_timestamp = scan_raw.at(w, h).time;
+            TPoint scan_point = scan_raw.at(w, h);  
+            uint32_t point_timestamp = scan_raw.at(w, h).time;  // Lidar의 각 Point Cloud의 timestamp 
             Eigen::Vector3d skewedPoint = Eigen::Vector3d(scan_point.x, scan_point.y, scan_point.z);
             /// Ignore NaNs
             if(isnan(scan_point.x) || isnan(scan_point.y) || isnan(scan_point.z)) {
@@ -92,8 +92,8 @@ void lin_estimator::lincalibManager::do_undistortion(double timestamp,
             }
 
             if (!point_timestamps.empty()) {
-                auto it = find(point_timestamps.begin(), point_timestamps.end(), point_timestamp);
-                if (it == point_timestamps.end()) {
+                auto it = find(point_timestamps.begin(), point_timestamps.end(), point_timestamp); // point_timestamps 벡터에서 point_timestamp와 일치하는 값을 찾는 것
+                if (it == point_timestamps.end()) { // 마지막 Point Cloud 인 경우
                     /// New timestamp
                     point_timestamps.push_back(point_timestamp);
                     double pointCurrTimeStamp = timestamp + point_timestamp/1e9;
@@ -103,12 +103,12 @@ void lin_estimator::lincalibManager::do_undistortion(double timestamp,
                 }
             } else {
                 /// This is the first point
-//                assert(i == 0);
                 point_timestamps.push_back(point_timestamp);
                 pointStartTimeStamp = timestamp + point_timestamp/1e9;
                 propagator->fast_state_propagate(state, pointStartTimeStamp, imu_state_start);
                 stamped_poses.insert(std::make_pair(point_timestamp, imu_state_start));
             }
+            
             Eigen::Matrix<double, 13, 1> imu_state_plus = stamped_poses.find(point_timestamp)->second;
             Eigen::Vector3d deskewedPoint = deskewPoint(imu_state_start, imu_state_plus, skewedPoint, I_R_L, I_t_L);
             TPoint deskewed_scan_point;
